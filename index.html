@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Links 桌面接收</title>
+  <link rel="stylesheet" href="styles.css?v=ring3" />
+  <script>
+    if (location.hash === "#busy") document.documentElement.classList.add("is-busy");
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="#1f6feb" stroke-width="1.6"/>
+          <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" fill="none" stroke="#1f6feb" stroke-width="1.6"/>
+        </svg>
+        <div>
+          <div class="brand-name">Links</div>
+          <span class="brand-sub">桌面接收</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="net"><i class="live-dot"></i>千兆局域网</span>
+        <span class="pass-flag" id="pass-flag" hidden>需要密码</span>
+        <button type="button" class="text" id="open-settings">设置</button>
+        <button type="button" class="text" id="open-phone">手机页</button>
+        <button type="button" class="text" id="mode">查看接收</button>
+        <button type="button" class="text" id="open-dir">打开目录</button>
+      </div>
+    </header>
+
+    <section class="stage" aria-label="等待接收">
+      <div class="ripples" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <div class="listen stage-in">
+        <div class="plate">
+          <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+        </div>
+      </div>
+      <h1 class="stage-in">等待接收</h1>
+      <p class="stage-in">用手机相机扫码，或在浏览器地址栏输入下面的地址</p>
+      <label class="address-box stage-in">
+        <span>在手机里输入</span>
+        <span class="address-field">
+          <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，可在手机中输入" />
+          <em>可输入</em>
+        </span>
+      </label>
+    </section>
+
+    <section class="sheet" id="settings" hidden>
+      <h2>接收设置</h2>
+      <label for="save-path">保存路径</label>
+      <input id="save-path" spellcheck="false" autocomplete="off" />
+      <label for="receive-password">接收密码</label>
+      <input id="receive-password" type="password" autocomplete="new-password" placeholder="留空则扫码或输入地址后直接进入" />
+      <p>手机扫码或输入地址之后，只有这里填了密码，才会出现密码框。路径会保留到下次打开。</p>
+      <button type="button" class="text" id="close-settings">完成</button>
+    </section>
+
+    <section class="phone" aria-label="手机连接">
+      <form class="join" id="join-form">
+        <h1>连接到电脑</h1>
+        <p class="join-lead">扫码会带上地址。也可以自己输入 IP。</p>
+        <label for="host">电脑地址</label>
+        <input id="host" inputmode="url" autocomplete="off" spellcheck="false" placeholder="192.168.1.24:8730" />
+        <div class="pass-slot" id="password-block">
+          <div>
+            <label for="join-password">接收密码</label>
+            <input id="join-password" type="password" autocomplete="current-password" />
+            <p class="error" id="password-error" hidden>密码不正确</p>
+          </div>
+        </div>
+        <div class="join-actions">
+          <button type="submit" class="fill" id="join-go">连接</button>
+          <button type="button" class="text" id="scan">按扫码进入</button>
+        </div>
+      </form>
+      <div class="pick" id="pick" hidden>
+        <h1>选择照片或视频</h1>
+        <p>选中后立即开始上传，原文件、多路并行。</p>
+        <button type="button" class="fill" id="pick-files">选择照片和视频</button>
+      </div>
+    </section>
+
+    <section class="busy" aria-label="正在接收">
+      <div class="meter">
+        <div class="meter-figure">
+          <strong id="mbps">930</strong>
+          <span>Mbps</span>
+          <em id="mbs">116 MB/s</em>
+        </div>
+        <div class="track" aria-hidden="true"><i id="meter-fill"></i></div>
+        <div class="meter-side">
+          <b id="util">99%</b>
+          <span id="lane-count">16 路 · 不切片</span>
+        </div>
+      </div>
+
+      <div class="list">
+        <div class="section-head">
+          <h2>正在接收</h2>
+          <span id="active-count">10 个文件并行</span>
+        </div>
+
+        <article class="row" id="file-v1">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>
+          <div class="name">
+            <b>海岸延时.mov</b>
+            <small id="v1-bytes">视频 · 8 路 · 1.06 GB / 4.80 GB</small>
+          </div>
+          <div class="speed">
+            <b id="v1-speed">54.2 MB/s</b>
+            <small id="v1-eta">剩余 1 分 11 秒</small>
+          </div>
+          <div class="line"><i id="v1-bar" style="width:22%"></i></div>
+        </article>
+
+        <article class="row" id="file-v2">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>
+          <div class="name">
+            <b>晚会舞台.mp4</b>
+            <small id="v2-bytes">视频 · 8 路 · 0.81 GB / 2.20 GB</small>
+          </div>
+          <div class="speed">
+            <b id="v2-speed">47.5 MB/s</b>
+            <small id="v2-eta">剩余 30 秒</small>
+          </div>
+          <div class="line"><i id="v2-bar" style="width:37%"></i></div>
+        </article>
+
+        <article class="row" id="file-photos">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name">
+            <b>IMG_8831.HEIC</b>
+            <small id="p-bytes">照片 · 81 MB / 180 MB</small>
+          </div>
+          <div class="speed">
+            <b id="p-speed">14.5 MB/s</b>
+            <small id="p-eta">剩余 7 秒</small>
+          </div>
+          <div class="line"><i id="p-bar" style="width:45%"></i></div>
+        </article>
+
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>IMG_8832.HEIC</b><small>照片 · 12 MB / 28 MB</small></div>
+          <div class="speed"><b>9.4 MB/s</b><small>剩余 2 秒</small></div>
+          <div class="line"><i style="width:43%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>IMG_8833.HEIC</b><small>照片 · 9 MB / 22 MB</small></div>
+          <div class="speed"><b>8.1 MB/s</b><small>剩余 2 秒</small></div>
+          <div class="line"><i style="width:41%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>IMG_8834.HEIC</b><small>照片 · 15 MB / 31 MB</small></div>
+          <div class="speed"><b>11.2 MB/s</b><small>剩余 2 秒</small></div>
+          <div class="line"><i style="width:48%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>
+          <div class="name"><b>门口夜景.mov</b><small>视频 · 8 路 · 0.42 GB / 1.60 GB</small></div>
+          <div class="speed"><b>22.0 MB/s</b><small>剩余 55 秒</small></div>
+          <div class="line"><i style="width:26%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>IMG_8835.HEIC</b><small>照片 · 8 MB / 19 MB</small></div>
+          <div class="speed"><b>7.6 MB/s</b><small>剩余 2 秒</small></div>
+          <div class="line"><i style="width:42%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>IMG_8836.HEIC</b><small>照片 · 11 MB / 26 MB</small></div>
+          <div class="speed"><b>8.8 MB/s</b><small>剩余 2 秒</small></div>
+          <div class="line"><i style="width:40%"></i></div>
+        </article>
+        <article class="row">
+          <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>
+          <div class="name"><b>DSC_4410.JPG</b><small>照片 · 4 MB / 9 MB</small></div>
+          <div class="speed"><b>6.2 MB/s</b><small>剩余 1 秒</small></div>
+          <div class="line"><i style="width:46%"></i></div>
+        </article>
+
+        <div class="section-head done-head">
+          <h2>已完成</h2>
+          <span>保存在接收目录</span>
+        </div>
+        <div class="done-row"><b>晚会彩排.mp4</b><span>1.10 GB</span><span>11 秒</span><span>102 MB/s</span></div>
+        <div class="done-row"><b>IMG_8824.HEIC</b><span>4.8 MB</span><span>1 秒</span><span>并行完成</span></div>
+        <div class="done-row" id="done-anchor"><b>门口.JPG</b><span>6.1 MB</span><span>1 秒</span><span>并行完成</span></div>
+      </div>
+    </section>
+
+    <footer class="status">
+      <label class="path"><i class="path-mark"></i>保存到 <input id="save-path-bar" spellcheck="false" /></label>
+      <div id="today">今天已接收 4 个文件 · 1.11 GB</div>
+    </footer>
+  </div>
+  <script src="app.js?v=ring3"></script>
+</body>
+</html>
