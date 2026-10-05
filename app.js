@@ -266,26 +266,31 @@ const TAU = Math.PI * 2;
 const qrCanvas = $("qr");
 const qrCtx = qrCanvas.getContext("2d");
 const plate = document.querySelector(".listen");
-const n = QR_MATRIX.length;
 const dots = [];
 
-function inFinder(r, c) {
-  return (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+function inFinder(r, c, size) {
+  return (r < 7 && c < 7) || (r < 7 && c >= size - 7) || (r >= size - 7 && c < 7);
 }
 
-for (let r = 0; r < n; r++) {
-  for (let c = 0; c < n; c++) {
-    if (!QR_MATRIX[r][c] || inFinder(r, c)) continue;
-    const dx = c - (n - 1) / 2;
-    const dy = r - (n - 1) / 2;
-    dots.push({
-      r: r,
-      c: c,
-      dist: Math.hypot(dx, dy),
-      phase: Math.hypot(dx, dy) * 0.42 + (r * 12.9898 + c * 78.233) % 1
-    });
+function rebuildDots() {
+  dots.length = 0;
+  const size = QR_MATRIX.length;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (!QR_MATRIX[r][c] || inFinder(r, c, size)) continue;
+      const dx = c - (size - 1) / 2;
+      const dy = r - (size - 1) / 2;
+      dots.push({
+        r: r,
+        c: c,
+        dist: Math.hypot(dx, dy),
+        phase: Math.hypot(dx, dy) * 0.42 + (r * 12.9898 + c * 78.233) % 1
+      });
+    }
   }
 }
+
+rebuildDots();
 
 function sizeCanvas(canvas, ctx, width, height) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -327,6 +332,7 @@ function paintQr(t) {
   const box = qrCanvas.getBoundingClientRect();
   const size = box.width;
   if (size < 8) return;
+  const n = QR_MATRIX.length;
   const quiet = 1.15;
   const cell = size / (n + quiet * 2);
   const origin = quiet * cell;
@@ -367,3 +373,14 @@ function paintQrFrame(now) {
 }
 
 requestAnimationFrame(paintQrFrame);
+
+window.Links = {
+  setMode: setMode,
+  rebuildDots: rebuildDots,
+  memory: memory,
+  showPhone: showPhone,
+  openPicker: openPicker,
+  resetJoin: resetJoin,
+  QR_MATRIX: QR_MATRIX,
+  $: $
+};

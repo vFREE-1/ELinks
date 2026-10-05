@@ -1,0 +1,239 @@
+const LIVE = location.protocol === "http:" || location.protocol === "https:";
+const LINKS = window.Links;
+const LANES = 8;
+const SLICE = 8 * 1024 * 1024;
+
+let info = null;
+let sessionId = "";
+let pollTimer = 0;
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function formatSize(bytes) {
+  if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + " GB";
+  if (bytes >= 1024 ** 2) return Math.max(1, Math.round(bytes / 1024 ** 2)) + " MB";
+  return bytes + " B";
+}
+
+if (LIVE && LINKS) {
+  boot();
+}
+
+async function boot() {
+  info = await fetch("/api/info").then(function (res) { return res.json(); });
+  LINKS.memory.host = info.host;
+  LINKS.memory.path = info.savePath;
+  $("desk-host").value = info.host;
+  $("host").value = info.host;
+  $("save-path").value = info.savePath;
+  $("save-path-bar").value = info.savePath;
+  $("pass-flag").hidden = !info.passwordSet;
+  $("demo-list").hidden = true;
+  $("demo-done").hidden = true;
+  $("live-list").hidden = false;
+  $("live-done").hidden = false;
+  $("today").textContent = "今天已接收 0 个文件";
+  $("active-count").textContent = "等待发送";
+  $("mbps").textContent = "0";
+  $("mbs").textContent = "0 MB/s";
+  $("util").textContent = "0%";
+  $("meter-fill").style.width = "0%";
+  $("lane-count").textContent = LANES + " 路 · 不切片";
+
+  const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
+  if (qr.matrix && qr.matrix.length) {
+    LINKS.QR_MATRIX.length = 0;
+    qr.matrix.forEach(function (row) { LINKS.QR_MATRIX.push(row); });
+    LINKS.rebuildDots();
+  }
+
+  const params = new URLSearchParams(location.search);
+  if (params.get("phone") === "1") {
+    if (params.get("t")) info.token = params.get("t");
+    LINKS.showPhone();
+    pair(false);
+  }
+
+  pollTransfers();
+  pollTimer = setInterval(pollTransfers, 400);
+}
+
+function persistConfig() {
+  const body = {
+    savePath: $("save-path-bar").value || $("save-path").value,
+    password: $("receive-password").value
+  };
+  fetch("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(function (res) { return res.json(); }).then(function (data) {
+    if (data.savePath) {
+      $("save-path").value = data.savePath;
+      $("save-path-bar").value = data.savePath;
+    }
+    $("pass-flag").hidden = !data.passwordSet;
+  }).catch(function () {});
+}
+
+$("save-path").addEventListener("change", persistConfig);
+$("save-path-bar").addEventListener("change", persistConfig);
+$("receive-password").addEventListener("change", persistConfig);
+$("close-settings").addEventListener("click", persistConfig);
+
+$("open-dir").addEventListener("click", function () {
+  if (!LIVE) return;
+  fetch("/api/open-dir", { method: "GET" });
+});
+
+async function pair(fromForm) {
+  const payload = { token: info.token };
+  if (fromForm) payload.password = $("join-password").value;
+  const res = await fetch("/api/pair", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  $("password-error").hidden = true;
+  if (data.needPassword) {
+    $("password-block").classList.add("open");
+    $("join-go").textContent = "确认";
+    $("join-password").focus();
+    return false;
+  }
+  if (!data.ok) {
+    $("password-error").hidden = false;
+    $("password-block").classList.add("open");
+    return false;
+  }
+  sessionId = data.session;
+  LINKS.openPicker();
+  return true;
+}
+
+$("join-form").addEventListener("submit", function (event) {
+  if (!LIVE) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  pair(true);
+}, true);
+
+$("scan").addEventListener("click", function (event) {
+  if (!LIVE) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  LINKS.resetJoin();
+  pair(false);
+}, true);
+
+$("pick-files").addEventListener("click", function () {
+  $("file-input").click();
+});
+
+$("file-input").addEventListener("change", function () {
+  const files = Array.prototype.slice.call($("file-input").files || []);
+  $("file-input").value = "";
+  if (!files.length || !sessionId) return;
+  LINKS.setMode(true);
+  files.forEach(function (file) { uploadFile(file); });
+});
+
+function uploadFile(file) {
+  const size = file.size;
+  const lanes = size > SLICE ? LANES : 1;
+  const slice = Math.ceil(size / lanes) || size;
+  const tasks = [];
+  let offset = 0;
+  while (offset < size) {
+    const end = Math.min(size, offset + slice);
+    const start = offset;
+    tasks.push(putSlice(file, start, end, size));
+    offset = end;
+  }
+  return Promise.all(tasks);
+}
+
+function putSlice(file, start, end, size) {
+  const blob = file.slice(start, end);
+  const query = new URLSearchParams({
+    session: sessionId,
+    name: file.name,
+    size: String(size),
+    offset: String(start)
+  });
+  return fetch("/api/upload?" + query.toString(), {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: blob
+  });
+}
+
+const icon = {
+  video: '<svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>',
+  photo: '<svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.1" fill="#1f6feb"/><path d="M2.5 11.2l3.2-2.6 2.2 1.6 1.6-1.2 3.8 2.6" fill="none" stroke="#1f6feb" stroke-width="1.1"/></svg>'
+};
+
+function kindOf(name) {
+  return /\.(mov|mp4|m4v|webm|mkv)$/i.test(name) ? "video" : "photo";
+}
+
+function renderRow(item) {
+  const kind = kindOf(item.name);
+  const ratio = item.size ? item.received / item.size : 0;
+  const left = Math.max(0, item.size - item.received);
+  const eta = item.speed > 0 ? Math.round(left / item.speed) : 0;
+  return '<article class="row">' + icon[kind] +
+    '<div class="name"><b></b><small></small></div>' +
+    '<div class="speed"><b></b><small></small></div>' +
+    '<div class="line"><i></i></div></article>';
+}
+
+function fillRow(node, item) {
+  const kind = kindOf(item.name);
+  const ratio = item.size ? item.received / item.size : 0;
+  const left = Math.max(0, item.size - item.received);
+  const eta = item.speed > 0 ? Math.round(left / item.speed) : 0;
+  node.querySelector(".name b").textContent = item.name;
+  node.querySelector(".name small").textContent =
+    (kind === "video" ? "视频 · " + LANES + " 路 · " : "照片 · ") +
+    formatSize(item.received) + " / " + formatSize(item.size);
+  node.querySelector(".speed b").textContent = (item.speed / (1024 * 1024)).toFixed(1) + " MB/s";
+  node.querySelector(".speed small").textContent = eta ? "剩余 " + eta + " 秒" : "进行中";
+  node.querySelector(".line i").style.width = (Math.min(1, ratio) * 100).toFixed(1) + "%";
+}
+
+async function pollTransfers() {
+  if (!LIVE) return;
+  const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
+  const live = $("live-list");
+  live.innerHTML = "";
+  let used = 0;
+  (data.active || []).forEach(function (item) {
+    live.insertAdjacentHTML("beforeend", renderRow(item));
+    fillRow(live.lastElementChild, item);
+    used += item.speed || 0;
+  });
+  const doneBox = $("live-done");
+  doneBox.innerHTML = "";
+  (data.done || []).slice().reverse().forEach(function (item) {
+    const row = document.createElement("div");
+    row.className = "done-row";
+    row.innerHTML = "<b></b><span></span><span></span><span></span>";
+    row.querySelector("b").textContent = item.name;
+    row.children[1].textContent = formatSize(item.size);
+    row.children[3].textContent = item.speed ? (item.speed / (1024 * 1024)).toFixed(0) + " MB/s" : "完成";
+    row.children[2].textContent = "已保存";
+    doneBox.appendChild(row);
+  });
+  const mbps = (used * 8) / 1e6;
+  $("mbps").textContent = Math.round(mbps).toString();
+  $("mbs").textContent = (used / (1024 * 1024)).toFixed(0) + " MB/s";
+  $("util").textContent = Math.min(100, Math.round((mbps / 940) * 100)) + "%";
+  $("meter-fill").style.width = Math.min(100, (mbps / 940) * 100).toFixed(1) + "%";
+  $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个文件并行") : "等待发送";
+  $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
+  if ((data.active || []).length) LINKS.setMode(true);
+}

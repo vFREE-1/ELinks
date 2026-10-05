@@ -106,7 +106,8 @@
           <h2>正在接收</h2>
           <span id="active-count">10 个文件并行</span>
         </div>
-
+        <div id="live-list" hidden></div>
+        <div id="demo-list">
         <article class="row" id="file-v1">
           <svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>
           <div class="name">
@@ -188,14 +189,18 @@
           <div class="speed"><b>6.2 MB/s</b><small>剩余 1 秒</small></div>
           <div class="line"><i style="width:46%"></i></div>
         </article>
+        </div>
 
         <div class="section-head done-head">
           <h2>已完成</h2>
           <span>保存在接收目录</span>
         </div>
+        <div id="live-done" hidden></div>
+        <div id="demo-done">
         <div class="done-row"><b>晚会彩排.mp4</b><span>1.10 GB</span><span>11 秒</span><span>102 MB/s</span></div>
         <div class="done-row"><b>IMG_8824.HEIC</b><span>4.8 MB</span><span>1 秒</span><span>并行完成</span></div>
         <div class="done-row" id="done-anchor"><b>门口.JPG</b><span>6.1 MB</span><span>1 秒</span><span>并行完成</span></div>
+        </div>
       </div>
     </section>
 
@@ -204,6 +209,8 @@
       <div id="today">今天已接收 4 个文件 · 1.11 GB</div>
     </footer>
   </div>
-  <script src="app.js?v=ring3"></script>
+  <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
+  <script src="app.js?v=live1"></script>
+  <script src="live.js?v=live1"></script>
 </body>
 </html>
