@@ -1,0 +1,10 @@
+---
+description: Binding agent contract for Links — commits, verify scripts, safe deletes
+alwaysApply: true
+---
+
+Follow `AGENT.md` in the repo root on every turn.
+
+- After each sub-feature, `git commit` (why in 1–2 sentences). Never commit `data/config.json` or `received/`.
+- After functional changes, run `scripts/verify.ps1`. Do not tell the user it is done until it exits 0.
+- Never delete paths outside `H:\links`. Resolve the path first; skip the delete if it is not inside the repo or not an expected target.

@@ -1,0 +1,6 @@
+data/
+received/
+*.pyc
+__pycache__/
+.python-version
+preview*.png
