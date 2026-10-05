@@ -1,5 +1,6 @@
 data/
 received/
+node_modules/
 *.pyc
 __pycache__/
 .python-version

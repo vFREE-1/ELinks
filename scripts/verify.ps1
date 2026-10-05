@@ -31,7 +31,7 @@ try {
 $started = $false
 $proc = $null
 if (-not $health) {
-  $proc = Start-Process -FilePath "python" -ArgumentList "server.py" -WorkingDirectory $RootFull -PassThru -WindowStyle Hidden
+  $proc = Start-Process -FilePath "node" -ArgumentList "server.mjs" -WorkingDirectory $RootFull -PassThru -WindowStyle Hidden
   $started = $true
   $ok = $false
   for ($i = 0; $i -lt 20; $i++) {
@@ -46,6 +46,8 @@ if (-not $health) {
 
 try {
   $info = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info"
+  if ($health.runtime -and $health.runtime -ne "node") { throw "expected node runtime, got $($health.runtime)" }
+  if ($info.host -match '^169\.254\.') { throw "link-local IP is not usable: $($info.host)" }
   if (-not $info.host) { throw "info.host missing" }
   if (-not $info.token) { throw "info.token missing" }
 

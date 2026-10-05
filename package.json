@@ -1,0 +1,12 @@
+{
+  "name": "links",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "verify": "powershell -NoProfile -File scripts/verify.ps1"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

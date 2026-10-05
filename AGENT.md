@@ -4,7 +4,7 @@ This file is binding for every agent working in this repository (`H:\links`).
 
 ## Product
 
-Windows desktop receiver + phone browser. No mobile app. Phone picks photos/videos; PC stores originals. Videos use multiple connections on one file; the UI still shows one progress bar.
+Windows desktop receiver (Node.js `server.mjs`) + phone browser. No mobile app. Phone picks photos/videos; PC stores originals. Videos use multiple connections on one file; the UI still shows one progress bar.
 
 ## Git
 
