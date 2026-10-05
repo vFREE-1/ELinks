@@ -4,6 +4,8 @@ import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
+import { pipeline } from "node:stream/promises";
+import { PassThrough } from "node:stream";
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
@@ -13,7 +15,7 @@ const DATA = path.join(ROOT, "data");
 const CONFIG_PATH = path.join(DATA, "config.json");
 const DEFAULT_SAVE = path.join(ROOT, "received");
 const PORT = 8730;
-const LANES = 8;
+const LANES = 6;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".svg", ".png", ".ico"]);
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
@@ -21,6 +23,7 @@ const sessions = new Map();
 const transfers = new Map();
 const done = [];
 const fileLocks = new Map();
+const stats = { inflight: 0, maxInflight: 0, bytes: 0 };
 
 function lanIp() {
   const preferred = [];
@@ -106,11 +109,51 @@ function uniqueDest(root, name) {
   }
 }
 
+function publicTransfer(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    size: item.size,
+    received: item.received,
+    speed: item.speed,
+    done: item.done
+  };
+}
+
 function withLock(key, fn) {
   const prev = fileLocks.get(key) || Promise.resolve();
   const next = prev.then(fn, fn);
   fileLocks.set(key, next.catch(() => {}));
   return next;
+}
+
+async function ensurePart(item, size) {
+  return withLock(`${item.id}:init`, async () => {
+    if (item.ready) return;
+    if (!fs.existsSync(item.part)) {
+      const created = await fsp.open(item.part, "w");
+      try {
+        if (size > 0) await created.write(Buffer.alloc(1), 0, 1, size - 1);
+      } finally {
+        await created.close();
+      }
+    }
+    item.ready = true;
+  });
+}
+
+async function writeRange(req, filePath, offset) {
+  let written = 0;
+  const tap = new PassThrough();
+  tap.on("data", (chunk) => {
+    written += chunk.length;
+  });
+  await pipeline(req, tap, fs.createWriteStream(filePath, {
+    flags: "r+",
+    start: offset,
+    highWaterMark: 1024 * 1024
+  }));
+  return written;
 }
 
 function sendJson(res, payload, status = 200) {
@@ -181,13 +224,13 @@ async function handleUpload(req, res, url) {
   const root = saveRoot();
   const key = `${session}:${name}:${size}`;
   const now = Date.now();
-  let item = transfers.get(key);
-  if (!item) {
-    const dest = uniqueDest(root, name);
-    if (!inside(root, dest)) {
-      sendJson(res, { ok: false, error: "path" }, 400);
-      return;
-    }
+  let item;
+  try {
+    await withLock(`xfer:${key}`, async () => {
+      item = transfers.get(key);
+      if (item) return;
+      const dest = uniqueDest(root, name);
+      if (!inside(root, dest)) throw new Error("path");
     item = {
       id: key,
       name: path.basename(dest),
@@ -197,9 +240,15 @@ async function handleUpload(req, res, url) {
       t: now,
       part: dest + ".part",
       dest,
-      done: false
+      done: false,
+      ready: false,
+      finalized: false
     };
     transfers.set(key, item);
+    });
+  } catch {
+    sendJson(res, { ok: false, error: "path" }, 400);
+    return;
   }
   if (!inside(root, item.part) || !inside(root, item.dest)) {
     sendJson(res, { ok: false, error: "path" }, 400);
@@ -208,34 +257,32 @@ async function handleUpload(req, res, url) {
 
   let written = 0;
   let finished = false;
-  await withLock(key, async () => {
-    if (!fs.existsSync(item.part)) {
-      const fh = await fsp.open(item.part, "w");
-      try {
-        if (size > 0) await fh.write(Buffer.alloc(1), 0, 1, size - 1);
-      } finally {
-        await fh.close();
-      }
+  await ensurePart(item, size);
+  stats.inflight += 1;
+  if (stats.inflight > stats.maxInflight) stats.maxInflight = stats.inflight;
+  try {
+    if (size > 0) written = await writeRange(req, item.part, offset);
+    else {
+      req.resume();
+      await new Promise((resolve) => req.on("end", resolve));
     }
-    const fh = await fsp.open(item.part, "r+");
-    try {
-      let pos = offset;
-      for await (const chunk of req) {
-        await fh.write(chunk, 0, chunk.length, pos);
-        pos += chunk.length;
-        written += chunk.length;
-      }
-    } finally {
-      await fh.close();
-    }
-    const dt = Math.max(0.001, (Date.now() - item.t) / 1000);
-    item.received = Math.min(size, item.received + written);
-    item.speed = written / dt;
-    item.t = Date.now();
-    finished = size > 0 && item.received >= size;
-    if (finished) {
+  } finally {
+    stats.inflight = Math.max(0, stats.inflight - 1);
+  }
+  stats.bytes += written;
+  await withLock(`${item.id}:meta`, async () => {
+    item.received = Math.min(size || written, item.received + written);
+    const nowMs = Date.now();
+    if (!item.window) item.window = [];
+    item.window.push({ t: nowMs, n: written });
+    item.window = item.window.filter((tick) => nowMs - tick.t < 1000);
+    const span = Math.max(0.2, (nowMs - (item.window[0] ? item.window[0].t : nowMs)) / 1000);
+    item.speed = item.window.reduce((sum, tick) => sum + tick.n, 0) / span;
+    const complete = (size > 0 && item.received >= size) || (size === 0 && !item.finalized);
+    if (complete && !item.finalized) {
+      item.finalized = true;
       item.done = true;
-      item.received = size;
+      finished = true;
       transfers.delete(key);
       done.push({ name: path.basename(item.dest), size, speed: item.speed });
       let dest = item.dest;
@@ -250,7 +297,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     if (req.method === "GET" && url.pathname === "/api/health") {
-      sendJson(res, { ok: true, runtime: "node" });
+      sendJson(res, { ok: true, runtime: "node", parallel: true, lanes: LANES });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
@@ -269,8 +316,22 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, { matrix: qrMatrix() });
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/stats") {
+      sendJson(res, { inflight: stats.inflight, maxInflight: stats.maxInflight, bytes: stats.bytes, lanes: LANES });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/stats/reset") {
+      stats.inflight = 0;
+      stats.maxInflight = 0;
+      stats.bytes = 0;
+      sendJson(res, { ok: true });
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/transfers") {
-      sendJson(res, { active: [...transfers.values()], done: done.slice(-20) });
+      sendJson(res, {
+        active: [...transfers.values()].map(publicTransfer),
+        done: done.slice(-20)
+      });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/open-dir") {
@@ -324,6 +385,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 loadConfig();
+server.maxConnections = 128;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Links receiver http://${lanIp()}:${PORT}`);
   console.log(`Save path ${saveRoot()}`);

@@ -28,9 +28,27 @@ try {
   $health = $null
 }
 
+function Stop-RepoReceiver {
+  $owns = @()
+  try {
+    $owns = @(Get-NetTCPConnection -LocalPort 8730 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique)
+  } catch {
+    $owns = @()
+  }
+  foreach ($procId in $owns) {
+    $p = Get-CimInstance Win32_Process -Filter "ProcessId = $procId"
+    if ($p -and $p.CommandLine -match 'server\.mjs') {
+      Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    }
+  }
+  Start-Sleep -Milliseconds 400
+}
+
 $started = $false
 $proc = $null
-if (-not $health) {
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.lanes -ne 6
+if ($needStart) {
+  Stop-RepoReceiver
   $proc = Start-Process -FilePath "node" -ArgumentList "server.mjs" -WorkingDirectory $RootFull -PassThru -WindowStyle Hidden
   $started = $true
   $ok = $false
@@ -69,7 +87,11 @@ try {
   Remove-Item -LiteralPath $dest
 
   if (Test-Path -LiteralPath $dest) { throw "failed to remove verify fixture" }
-  Write-Output "VERIFY_OK host=$($info.host) file=$name"
+
+  node (Join-Path $RootFull "scripts\verify-parallel.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "parallel verify failed" }
+
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force

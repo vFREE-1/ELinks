@@ -1,7 +1,7 @@
 const LIVE = location.protocol === "http:" || location.protocol === "https:";
 const LINKS = window.Links;
-const LANES = 8;
-const SLICE = 8 * 1024 * 1024;
+let MAX_CONN = 6;
+const SLICE = 4 * 1024 * 1024;
 
 let info = null;
 let sessionId = "";
@@ -23,6 +23,7 @@ if (LIVE && LINKS) {
 
 async function boot() {
   info = await fetch("/api/info").then(function (res) { return res.json(); });
+  if (info.lanes) MAX_CONN = info.lanes;
   LINKS.memory.host = info.host;
   LINKS.memory.path = info.savePath;
   $("desk-host").value = info.host;
@@ -40,7 +41,7 @@ async function boot() {
   $("mbs").textContent = "0 MB/s";
   $("util").textContent = "0%";
   $("meter-fill").style.width = "0%";
-  $("lane-count").textContent = LANES + " 路 · 不切片";
+  $("lane-count").textContent = MAX_CONN + " 路并行 · 顶满带宽";
 
   const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
   if (qr.matrix && qr.matrix.length) {
@@ -141,19 +142,35 @@ $("file-input").addEventListener("change", function () {
   files.forEach(function (file) { uploadFile(file); });
 });
 
+let inflight = 0;
+const waiting = [];
+
+function withConn(fn) {
+  return new Promise(function (resolve, reject) {
+    function run() {
+      inflight += 1;
+      Promise.resolve()
+        .then(fn)
+        .then(resolve, reject)
+        .then(function () {
+          inflight -= 1;
+          const next = waiting.shift();
+          if (next) next();
+        });
+    }
+    if (inflight < MAX_CONN) run();
+    else waiting.push(run);
+  });
+}
+
 function uploadFile(file) {
   const size = file.size;
-  const lanes = size > SLICE ? LANES : 1;
-  const slice = Math.ceil(size / lanes) || size;
-  const tasks = [];
-  let offset = 0;
-  while (offset < size) {
-    const end = Math.min(size, offset + slice);
-    const start = offset;
-    tasks.push(putSlice(file, start, end, size));
-    offset = end;
+  const jobs = [];
+  for (let start = 0; start < size; start += SLICE) {
+    const end = Math.min(size, start + SLICE);
+    jobs.push(withConn(function () { return putSlice(file, start, end, size); }));
   }
-  return Promise.all(tasks);
+  return Promise.all(jobs);
 }
 
 function putSlice(file, start, end, size) {
@@ -198,7 +215,7 @@ function fillRow(node, item) {
   const eta = item.speed > 0 ? Math.round(left / item.speed) : 0;
   node.querySelector(".name b").textContent = item.name;
   node.querySelector(".name small").textContent =
-    (kind === "video" ? "视频 · " + LANES + " 路 · " : "照片 · ") +
+    (kind === "video" ? "视频 · " + MAX_CONN + " 路 · " : "照片 · ") +
     formatSize(item.received) + " / " + formatSize(item.size);
   node.querySelector(".speed b").textContent = (item.speed / (1024 * 1024)).toFixed(1) + " MB/s";
   node.querySelector(".speed small").textContent = eta ? "剩余 " + eta + " 秒" : "进行中";
