@@ -744,6 +744,29 @@ html.is-phone #open-dir { display: none; }
   transform: translateX(16px);
 }
 
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: var(--tracking-ui);
+}
+
+.update-row b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.update-status {
+  margin: 8px 0 0;
+  min-height: 1.4em;
+}
+
+.update-status a { color: var(--blue); }
+
 .sheet p {
   margin: 10px 0 12px;
   color: var(--muted);

@@ -10,6 +10,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
+import { APP_VERSION, checkUpdate } from "./update.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(ROOT, "data");
@@ -364,8 +365,15 @@ const server = http.createServer(async (req, res) => {
         linkMps: Math.round(linkMps()),
         ssid: link.ssid,
         wifiJoin: link.wifiJoin,
-        rings: cfg.rings !== false
+        rings: cfg.rings !== false,
+        version: APP_VERSION
       });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/update") {
+      const local = url.searchParams.get("local") === "1";
+      const result = await checkUpdate({ local, timeoutMs: 2500 });
+      sendJson(res, result);
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/qr-matrix") {

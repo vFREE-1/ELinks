@@ -32,6 +32,7 @@ async function boot() {
   $("save-path-bar").value = info.savePath;
   $("pass-flag").hidden = !info.passwordSet;
   applyRings(info.rings !== false);
+  if ($("app-version") && info.version) $("app-version").textContent = info.version;
   if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
   if ($("now-mps")) $("now-mps").textContent = "0";
   $("today").textContent = "今天已接收 0 个文件";
@@ -59,6 +60,7 @@ async function boot() {
 
   pollTransfers();
   pollTimer = setInterval(pollTransfers, 400);
+  if (params.get("phone") !== "1") checkForUpdate(false);
 }
 
 let pageMatrix = null;
@@ -191,6 +193,40 @@ $("random-password").addEventListener("click", function () {
 $("rings-toggle").addEventListener("click", function () {
   applyRings($("rings-toggle").getAttribute("aria-checked") !== "true");
   persistConfig();
+});
+
+function setUpdateStatus(html) {
+  const node = $("update-status");
+  if (!node) return;
+  node.innerHTML = html || "";
+}
+
+function checkForUpdate(manual) {
+  const btn = $("check-update");
+  if (manual && btn) btn.textContent = "正在检查";
+  return fetch("/api/update").then(function (res) { return res.json(); }).then(function (data) {
+    if ($("app-version") && data.current) $("app-version").textContent = data.current;
+    if (data.newer) {
+      const href = data.page && /^https?:\/\//i.test(data.page) ? String(data.page).replace(/"/g, "") : "";
+      const via = data.source ? "（" + data.source + "）" : "";
+      setUpdateStatus(
+        "有新版本 " + data.version + via +
+        (href ? " · <a class=\"text\" href=\"" + href + "\" target=\"_blank\" rel=\"noreferrer\">打开更新</a>" : "")
+      );
+      if (btn) btn.textContent = "有新版本";
+      return;
+    }
+    if (manual) setUpdateStatus(data.source ? "已是最新 " + data.current : "还没有发布包，当前 " + data.current);
+    else setUpdateStatus("");
+    if (btn) btn.textContent = "检查更新";
+  }).catch(function () {
+    if (manual) setUpdateStatus("暂时连不上更新源");
+    if (btn) btn.textContent = "检查更新";
+  });
+}
+
+$("check-update").addEventListener("click", function () {
+  checkForUpdate(true);
 });
 
 $("copy-host").addEventListener("click", function () {

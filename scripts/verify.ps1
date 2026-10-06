@@ -56,6 +56,7 @@ try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'rings') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'version') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -85,6 +86,7 @@ try {
   if ($null -eq $info.linkMps) { throw "info.linkMps missing" }
   if ($info.phoneUrl -notmatch 'phone=1') { throw "phoneUrl must be an explicit GET link" }
   if ($info.PSObject.Properties.Name -notcontains 'rings') { throw "info.rings missing" }
+  if (-not $info.version) { throw "info.version missing" }
   if ($info.ssid -isnot [string]) { throw "info.ssid must be a string" }
   if ($info.wifiJoin -isnot [bool]) { throw "info.wifiJoin must be a boolean" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
@@ -103,6 +105,13 @@ try {
 
   node (Join-Path $RootFull "scripts\verify-wifi.mjs")
   if ($LASTEXITCODE -ne 0) { throw "wifi verify failed" }
+
+  node (Join-Path $RootFull "scripts\verify-update.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "update verify failed" }
+  $upd = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/update?local=1"
+  if (-not $upd.ok) { throw "local update probe failed" }
+  if ($upd.current -ne $info.version) { throw "update current mismatch $($upd.current)" }
+  if ($upd.source -ne "local") { throw "local update probe should skip remotes" }
 
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing
   if ($page.Headers["Cache-Control"] -ne "no-store") { throw "waiting page must not be cached" }
@@ -182,6 +191,7 @@ try {
   if ($index -notmatch 'id="copy-host"') { throw "copy address button missing" }
   if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
   if ($index -notmatch 'id="random-password"') { throw "random password button missing" }
+  if ($index -notmatch 'id="check-update"') { throw "update check missing" }
   if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub">桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
