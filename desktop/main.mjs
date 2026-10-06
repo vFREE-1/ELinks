@@ -17,7 +17,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 640,
     backgroundColor: "#ffffff",
-    title: "Links",
+    title: "Elinks",
     icon: path.join(ROOT, "assets", "icon.png"),
     autoHideMenuBar: true,
     show: false,

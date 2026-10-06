@@ -37,9 +37,14 @@ function Stop-RepoReceiver {
   }
   foreach ($procId in $owns) {
     $p = Get-CimInstance Win32_Process -Filter "ProcessId = $procId"
-    if ($p -and $p.CommandLine -match 'server\.mjs') {
+    if ($p -and ($p.Name -match 'node|electron')) {
       Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
     }
+  }
+  Get-CimInstance Win32_Process | Where-Object {
+    $_.Name -match 'electron' -and $_.CommandLine -match 'H:\\links|electron \.'
+  } | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
   }
   Start-Sleep -Milliseconds 400
 }
@@ -47,6 +52,12 @@ function Stop-RepoReceiver {
 $started = $false
 $proc = $null
 $needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.lanes -ne 6
+try {
+  $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
+  if ($null -eq $peek.linkMps) { $needStart = $true }
+} catch {
+  $needStart = $true
+}
 if ($needStart) {
   Stop-RepoReceiver
   $proc = Start-Process -FilePath "node" -ArgumentList "server.mjs" -WorkingDirectory $RootFull -PassThru -WindowStyle Hidden
@@ -68,6 +79,12 @@ try {
   if ($info.host -match '^169\.254\.') { throw "link-local IP is not usable: $($info.host)" }
   if (-not $info.host) { throw "info.host missing" }
   if (-not $info.token) { throw "info.token missing" }
+  if ($null -eq $info.linkMps) { throw "info.linkMps missing" }
+
+  $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
+  if ($index -notmatch 'Elinks') { throw "brand should be Elinks" }
+  if ($index -notmatch 'Power by EndLessGo - vFREE') { throw "footer credit missing" }
+  if ($index -match '千兆局域网') { throw "header still uses a marketing link label" }
 
   $pair = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/pair" -Method POST -ContentType "application/json" -Body (@{ token = $info.token } | ConvertTo-Json)
   if (-not $pair.ok) { throw "pair failed: $($pair | ConvertTo-Json)" }
@@ -117,7 +134,7 @@ try {
     Pop-Location
   }
 
-  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6 desktop=dev"
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6 desktop=dev linkMps=$($info.linkMps)"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force

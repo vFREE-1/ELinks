@@ -31,6 +31,8 @@ async function boot() {
   $("save-path").value = info.savePath;
   $("save-path-bar").value = info.savePath;
   $("pass-flag").hidden = !info.passwordSet;
+  if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
+  if ($("now-mps")) $("now-mps").textContent = "0";
   $("demo-list").hidden = true;
   $("demo-done").hidden = true;
   $("live-list").hidden = false;
@@ -38,7 +40,7 @@ async function boot() {
   $("today").textContent = "今天已接收 0 个文件";
   $("active-count").textContent = "等待发送";
   $("mbps").textContent = "0";
-  $("mbs").textContent = "0 MB/s";
+  $("mbs").textContent = "0 M/s";
   $("util").textContent = "0%";
   $("meter-fill").style.width = "0%";
   $("lane-count").textContent = MAX_CONN + " 路并行 · 顶满带宽";
@@ -217,7 +219,7 @@ function fillRow(node, item) {
   node.querySelector(".name small").textContent =
     (kind === "video" ? "视频 · " + MAX_CONN + " 路 · " : "照片 · ") +
     formatSize(item.received) + " / " + formatSize(item.size);
-  node.querySelector(".speed b").textContent = (item.speed / (1024 * 1024)).toFixed(1) + " MB/s";
+  node.querySelector(".speed b").textContent = (item.speed / 1e6).toFixed(1) + " M/s";
   node.querySelector(".speed small").textContent = eta ? "剩余 " + eta + " 秒" : "进行中";
   node.querySelector(".line i").style.width = (Math.min(1, ratio) * 100).toFixed(1) + "%";
 }
@@ -241,15 +243,17 @@ async function pollTransfers() {
     row.innerHTML = "<b></b><span></span><span></span><span></span>";
     row.querySelector("b").textContent = item.name;
     row.children[1].textContent = formatSize(item.size);
-    row.children[3].textContent = item.speed ? (item.speed / (1024 * 1024)).toFixed(0) + " MB/s" : "完成";
+    row.children[3].textContent = item.speed ? (item.speed / 1e6).toFixed(0) + " M/s" : "完成";
     row.children[2].textContent = "已保存";
     doneBox.appendChild(row);
   });
-  const mbps = (used * 8) / 1e6;
-  $("mbps").textContent = Math.round(mbps).toString();
-  $("mbs").textContent = (used / (1024 * 1024)).toFixed(0) + " MB/s";
-  $("util").textContent = Math.min(100, Math.round((mbps / 940) * 100)) + "%";
-  $("meter-fill").style.width = Math.min(100, (mbps / 940) * 100).toFixed(1) + "%";
+  const cap = ((info && info.linkMps) || 125) * 1e6;
+  const usedM = used / 1e6;
+  if ($("now-mps")) $("now-mps").textContent = Math.round(usedM).toString();
+  $("mbps").textContent = Math.round(usedM).toString();
+  $("mbs").textContent = Math.round(usedM) + " M/s";
+  $("util").textContent = Math.min(100, Math.round((used / cap) * 100)) + "%";
+  $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
   $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个文件并行") : "等待发送";
   $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
   if ((data.active || []).length) LINKS.setMode(true);

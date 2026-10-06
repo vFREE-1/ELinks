@@ -6,7 +6,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { PassThrough } from "node:stream";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 
@@ -37,6 +37,43 @@ function lanIp() {
     }
   }
   return preferred[0] || other[0] || "127.0.0.1";
+}
+
+let nicMps = 0;
+let nicProbed = false;
+
+function readNicMps() {
+  if (process.platform !== "win32") return 0;
+  const ip = lanIp().replace(/[^0-9.]/g, "");
+  const script = `
+    $ip = '${ip}'
+    $idx = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip })[0].InterfaceIndex
+    if ($idx) {
+      [int64](Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Speed
+    } else {
+      [int64](@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.Speed } | Sort-Object Speed -Descending)[0].Speed)
+    }
+  `;
+  try {
+    const stdout = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
+      timeout: 4000,
+      windowsHide: true,
+      encoding: "utf8"
+    });
+    const bits = Number(String(stdout || "").trim());
+    if (Number.isFinite(bits) && bits > 0) return bits / 8 / 1e6;
+  } catch {
+    /* keep 0 */
+  }
+  return 0;
+}
+
+function linkMps() {
+  if (!nicProbed) {
+    nicProbed = true;
+    nicMps = readNicMps();
+  }
+  return nicMps;
 }
 
 function loadConfig() {
@@ -308,7 +345,8 @@ const server = http.createServer(async (req, res) => {
         passwordSet: Boolean(String(cfg.password || "").trim()),
         token: pairToken,
         phoneUrl: phoneUrl(),
-        lanes: LANES
+        lanes: LANES,
+        linkMps: Math.round(linkMps())
       });
       return;
     }
@@ -388,6 +426,7 @@ export { PORT, lanIp, server };
 
 export function startServer() {
   loadConfig();
+  linkMps();
   server.maxConnections = 128;
   if (server.listening) return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
   return new Promise((resolve, reject) => {
@@ -401,7 +440,7 @@ export function startServer() {
     };
     const onListen = () => {
       server.off("error", onError);
-      console.log(`Links receiver http://${lanIp()}:${PORT}`);
+      console.log(`Elinks receiver http://${lanIp()}:${PORT}`);
       console.log(`Save path ${saveRoot()}`);
       resolve({ port: PORT, host: lanIp(), reused: false });
     };

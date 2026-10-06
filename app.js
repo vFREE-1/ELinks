@@ -308,8 +308,11 @@ function placeRipples() {
   if (!stage || !plate) return;
   const stageBox = stage.getBoundingClientRect();
   const qrBox = plate.getBoundingClientRect();
+  if (stageBox.height < 8 || qrBox.width < 8) return;
   const top = ((qrBox.top + qrBox.height / 2 - stageBox.top) / stageBox.height) * 100;
+  if (!Number.isFinite(top)) return;
   stage.style.setProperty("--qr-top", top + "%");
+  stage.style.setProperty("--qr-size", Math.round(qrBox.width) + "px");
 }
 
 function resizeField() {
