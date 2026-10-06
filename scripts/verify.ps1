@@ -160,7 +160,8 @@ try {
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
   if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
-  if ($css -notmatch '\.stage-copy') { throw "QR caption CSS missing" }
+  if ($css -notmatch '\.stage \{[\s\S]{0,280}justify-content:\s*center') { throw "QR and caption should sit together in the center" }
+  if ($css -match '\.stage-main \{[\s\S]{0,80}flex:\s*1') { throw "QR block should not stretch away from the caption" }
   if ($css -notmatch 'html, body \{[\s\S]{0,120}overflow:\s*hidden') { throw "page must clip the native window scrollbar" }
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }
   if ($css -notmatch '\.brand \{[\s\S]{0,180}white-space:\s*nowrap') { throw "toolbar brand must stay on one row" }
