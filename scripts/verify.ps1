@@ -122,6 +122,9 @@ try {
     throw "waiting ripples should keep six rings"
   }
   if ($index -notmatch 'is-desktop') { throw "desktop chrome class missing" }
+  $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
+  if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
+  if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

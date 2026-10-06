@@ -5,6 +5,10 @@
   --blue: #1f6feb;
   --track: #e8eef6;
   --white: #ffffff;
+  --tracking-display: 0.12em;
+  --tracking-title: 0.06em;
+  --tracking-body: 0.04em;
+  --tracking-ui: 0.05em;
 }
 
 * { box-sizing: border-box; }
@@ -14,7 +18,12 @@ html, body {
   margin: 0;
   background: var(--white);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-weight: 400;
+  line-height: 1.47;
+  letter-spacing: var(--tracking-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button { font: inherit; color: inherit; }
@@ -128,13 +137,19 @@ html.is-desktop .top-nav {
   flex: none;
 }
 
-.brand-name { font-size: 15px; font-weight: 620; letter-spacing: -0.01em; }
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 
 .brand-sub {
   display: block;
-  margin-top: 1px;
+  margin-top: 3px;
   color: var(--muted);
   font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 400;
 }
 
 .top-actions {
@@ -165,7 +180,8 @@ html.is-desktop .top-nav {
 
 .net-now b {
   font-size: 13px;
-  font-weight: 620;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .net-cap {
@@ -179,18 +195,20 @@ html.is-desktop .top-nav {
 .top-nav {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 button.nav {
   border: 0;
   background: transparent;
   color: #86868b;
-  padding: 5px 9px;
+  padding: 6px 11px;
   height: auto;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  letter-spacing: var(--tracking-ui);
+  font-weight: 400;
 }
 
 button.nav:hover {
@@ -216,7 +234,7 @@ html:not(.is-busy) .live-dot { animation: pulse 2.8s ease-in-out infinite; }
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 24px 24px 36px;
+  padding: 28px 32px 48px;
   position: relative;
   overflow: hidden;
 }
@@ -238,7 +256,7 @@ html.is-phone .stage { display: none; }
   height: min(248px, 36vh);
   display: grid;
   place-items: center;
-  margin-bottom: 22px;
+  margin-bottom: 32px;
 }
 
 .plate {
@@ -261,25 +279,30 @@ html.is-phone .stage { display: none; }
 
 .stage h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.35;
 }
 
 .stage p {
-  margin: 8px 0 0;
+  margin: 14px 0 0;
+  max-width: 22em;
   color: var(--muted);
   font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+  letter-spacing: 0.06em;
 }
 
 .address-box {
-  margin-top: 18px;
+  margin-top: 28px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  width: min(360px, 86vw);
-  padding: 10px 12px 12px;
+  gap: 8px;
+  width: min(380px, 86vw);
+  padding: 14px 16px 16px;
   text-align: left;
   border: 1px solid rgba(31, 111, 235, 0.28);
   border-radius: 16px;
@@ -289,7 +312,8 @@ html.is-phone .stage { display: none; }
 
 .address-box > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  letter-spacing: var(--tracking-ui);
   padding-left: 4px;
 }
 
@@ -310,9 +334,9 @@ html.is-phone .stage { display: none; }
   border: 0;
   background: transparent;
   color: var(--ink);
-  font: 600 17px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+  font: 500 16px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.04em;
   outline: none;
 }
 
@@ -320,6 +344,7 @@ html.is-phone .stage { display: none; }
   flex: none;
   font-style: normal;
   font-size: 12px;
+  letter-spacing: 0.04em;
   color: var(--blue);
   background: #fff;
   border: 1px solid rgba(31, 111, 235, 0.28);
@@ -361,11 +386,11 @@ html.is-busy .busy { display: flex; }
 
 .meter-figure strong {
   font-size: 20px;
-  font-weight: 620;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.meter-figure span { color: var(--blue); font-size: 12px; font-weight: 620; }
+.meter-figure span { color: var(--blue); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
 
 .meter-figure em {
   margin-left: 6px;
@@ -380,7 +405,7 @@ html.is-busy .busy { display: flex; }
 
 .meter-side { text-align: right; font-variant-numeric: tabular-nums; }
 
-.meter-side b { font-size: 15px; font-weight: 620; }
+.meter-side b { font-size: 15px; font-weight: 600; }
 
 .meter-side span { display: block; color: var(--muted); font-size: 11px; }
 
@@ -407,7 +432,8 @@ html.is-busy .busy { display: flex; }
 .section-head h2 {
   margin: 0;
   font-size: 12px;
-  font-weight: 620;
+  font-weight: 600;
+  letter-spacing: var(--tracking-ui);
   color: var(--muted);
 }
 
@@ -419,7 +445,7 @@ html.is-busy .busy { display: flex; }
   column-gap: 10px;
   row-gap: 5px;
   align-items: center;
-  padding: 7px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -431,7 +457,8 @@ html.is-busy .busy { display: flex; }
 .done-row b {
   display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -440,9 +467,10 @@ html.is-busy .busy { display: flex; }
 .name small,
 .speed small {
   display: block;
-  margin-top: 1px;
+  margin-top: 3px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -450,7 +478,7 @@ html.is-busy .busy { display: flex; }
 
 .speed { grid-column: 3; grid-row: 1; text-align: right; font-variant-numeric: tabular-nums; }
 
-.speed b { font-size: 13px; font-weight: 620; }
+.speed b { font-size: 13px; font-weight: 600; letter-spacing: 0; }
 
 .line {
   grid-column: 2 / -1;
@@ -499,7 +527,7 @@ html.is-busy .busy { display: flex; }
   color: rgba(29, 29, 31, 0.2);
   font-size: 10px;
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -550,16 +578,18 @@ html.is-phone #open-dir { display: none; }
 
 .sheet h2 {
   margin: 0 0 14px;
-  font-size: 15px;
-  font-weight: 620;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-title);
 }
 
 .sheet label,
 .join label {
   display: block;
-  margin: 12px 0 6px;
+  margin: 14px 0 8px;
   color: var(--muted);
   font-size: 12px;
+  letter-spacing: var(--tracking-ui);
 }
 
 .sheet input { width: 100%; height: 32px; font-size: 14px; }
@@ -568,7 +598,8 @@ html.is-phone #open-dir { display: none; }
   margin: 10px 0 12px;
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.65;
+  letter-spacing: var(--tracking-body);
 }
 
 .phone {
@@ -590,15 +621,18 @@ html.is-phone .busy { display: none; }
 
 .join h1, .pick h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.35;
 }
 
 .join-lead, .pick p {
-  margin: 8px 0 18px;
+  margin: 12px 0 22px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: 0.05em;
 }
 
 .join input {
@@ -627,13 +661,15 @@ html.is-phone .busy { display: none; }
 }
 
 button.fill {
-  height: 36px;
-  padding: 0 16px;
+  height: 40px;
+  padding: 0 20px;
   border: 0;
   border-radius: 980px;
   background: var(--blue);
   color: #fff;
   cursor: pointer;
+  letter-spacing: 0.06em;
+  font-weight: 500;
 }
 
 button.fill:hover { background: #154ea8; }
