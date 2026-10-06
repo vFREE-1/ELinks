@@ -10,6 +10,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
+import { isUsbAddress, parseBlockRules, parseCategory, pickLanIp } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
 
@@ -28,17 +29,7 @@ const fileLocks = new Map();
 const stats = { inflight: 0, maxInflight: 0, bytes: 0 };
 
 function lanIp() {
-  const preferred = [];
-  const other = [];
-  for (const addrs of Object.values(os.networkInterfaces())) {
-    for (const addr of addrs || []) {
-      if (addr.family !== "IPv4" || addr.internal) continue;
-      if (addr.address.startsWith("169.254.")) continue;
-      if (/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(addr.address)) preferred.push(addr.address);
-      else other.push(addr.address);
-    }
-  }
-  return preferred[0] || other[0] || "127.0.0.1";
+  return pickLanIp(nicList());
 }
 
 let nicMps = 0;
@@ -80,6 +71,72 @@ function linkMps() {
 
 function laneCount() {
   return lanesForLink(linkMps());
+}
+
+function nicList() {
+  const nics = [];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const addr of addrs || []) {
+      nics.push({
+        name,
+        address: addr.address,
+        family: addr.family,
+        internal: addr.internal
+      });
+    }
+  }
+  return nics;
+}
+
+function usbLinked() {
+  return nicList().some((nic) => !nic.internal && isUsbAddress(nic.address, nic.name));
+}
+
+let reachAt = 0;
+let reachValue = { needAllow: false, publicNet: false, usb: false };
+
+function readReach() {
+  const usb = usbLinked();
+  if (process.platform !== "win32") return { needAllow: false, publicNet: false, usb };
+  try {
+    const profiles = execFileSync("powershell.exe", [
+      "-NoProfile",
+      "-Command",
+      "Get-NetConnectionProfile | ForEach-Object { $_.Name + ' ' + $_.InterfaceAlias + ' ' + $_.NetworkCategory }"
+    ], { timeout: 4000, windowsHide: true, encoding: "utf8" });
+    const publicNet = parseCategory(profiles).publicNet;
+    const blocks = execFileSync("powershell.exe", [
+      "-NoProfile",
+      "-Command",
+      "Get-NetFirewallRule -Direction Inbound -Action Block -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq 'True' -and $_.DisplayName -match 'Node.js|Electron|Elinks' } | Select-Object -First 6 DisplayName, Enabled, Action | Out-String"
+    ], { timeout: 4000, windowsHide: true, encoding: "utf8" });
+    const blocked = parseBlockRules(blocks);
+    return { needAllow: publicNet || blocked, publicNet, usb };
+  } catch {
+    return { needAllow: true, publicNet: true, usb };
+  }
+}
+
+function currentReach() {
+  if (Date.now() - reachAt < 4000) return reachValue;
+  reachValue = readReach();
+  reachAt = Date.now();
+  return reachValue;
+}
+
+function allowLan() {
+  const script = path.join(ROOT, "scripts", "allow-lan.ps1");
+  const ip = lanIp();
+  execFileSync("powershell.exe", [
+    "-NoProfile",
+    "-Command",
+    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -ArgumentList @('-NoProfile','-File','${script}','-LanIp','${ip}')`
+  ], { timeout: 120000, windowsHide: true, encoding: "utf8" });
+  reachAt = 0;
+}
+
+function openHotspot() {
+  execFile("cmd.exe", ["/c", "start", "ms-settings:network-mobilehotspot"], { windowsHide: true });
 }
 
 function loadConfig() {
@@ -359,6 +416,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/info") {
       const cfg = loadConfig();
       const link = await currentLink();
+      const reach = currentReach();
       sendJson(res, {
         host: `${lanIp()}:${PORT}`,
         savePath: cfg.savePath,
@@ -370,7 +428,10 @@ const server = http.createServer(async (req, res) => {
         ssid: link.ssid,
         wifiJoin: link.wifiJoin,
         rings: cfg.rings !== false,
-        version: APP_VERSION
+        version: APP_VERSION,
+        needAllow: reach.needAllow,
+        publicNet: reach.publicNet,
+        usb: reach.usb
       });
       return;
     }
@@ -441,6 +502,28 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(path.resolve(cfg.savePath), { recursive: true });
       saveConfig(cfg);
       sendJson(res, { ok: true, savePath: cfg.savePath, passwordSet: Boolean(String(cfg.password).trim()), rings: cfg.rings !== false });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/allow-lan") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      try {
+        allowLan();
+        sendJson(res, { ok: true, ...currentReach() });
+      } catch (err) {
+        sendJson(res, { ok: false, error: String(err && err.message ? err.message : err) });
+      }
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/open-hotspot") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      openHotspot();
+      sendJson(res, { ok: true });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/pair") {

@@ -85,14 +85,33 @@ function showPageQr() {
   const name = networkName();
   if (wifiMatrix) {
     $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。";
-    $("join-wifi").hidden = false;
-    $("join-wifi-title").textContent = "手机扫了却打不开？";
-    $("join-wifi-copy").textContent = "多半还没连上电脑的 Wi-Fi" + name + "。点这里，扫码加入，不用输密码。";
+    $("join-wifi").hidden = Boolean(info && info.needAllow);
+    $("join-wifi-title").textContent = "手机还没连这个 Wi-Fi？";
+    $("join-wifi-copy").textContent = "点这里，改扫加入" + name + "的码，不用输密码。";
+  } else {
+    $("join-wifi").hidden = true;
+    if (name) $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
+    else $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+  }
+  showAllowLan();
+}
+
+function showAllowLan() {
+  const card = $("allow-lan");
+  if (!card) return;
+  const local = location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.hostname === "[::1]";
+  if (!local || qrMode !== "page" || !info || !info.needAllow) {
+    card.hidden = true;
     return;
   }
-  $("join-wifi").hidden = true;
-  if (name) $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
-  else $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+  card.hidden = false;
+  $("stage-lead").textContent = "用手机相机扫这个码。若打不开，先点下面允许接入。";
+  $("allow-lan-title").textContent = "手机扫了却打不开？";
+  if (info.usb) {
+    $("allow-lan-copy").textContent = "已检测到 USB 网络。点这里允许连入，系统会弹出一次确认。";
+    return;
+  }
+  $("allow-lan-copy").textContent = "不是 Wi-Fi 错了，是电脑挡住了手机。点这里允许连入，系统会弹出一次确认。";
 }
 
 function showWifiQr() {
@@ -105,6 +124,7 @@ function showWifiQr() {
   $("join-wifi").hidden = false;
   $("join-wifi-title").textContent = "已经加入了？";
   $("join-wifi-copy").textContent = "点这里，换回接收码，再扫一次就会打开选照片。";
+  showAllowLan();
 }
 
 async function loadWifiJoin() {
@@ -127,6 +147,32 @@ $("join-wifi").addEventListener("click", function () {
   if (qrMode === "wifi") showPageQr();
   else showWifiQr();
 });
+
+$("allow-lan").addEventListener("click", function () {
+  $("allow-lan-title").textContent = "等待系统确认…";
+  $("allow-lan-copy").textContent = "请在弹出的窗口里点是。";
+  fetch("/api/allow-lan", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
+    return refreshLink().then(function () {
+      if (data && data.ok === false) {
+        $("allow-lan").hidden = false;
+        $("allow-lan-title").textContent = "没有完成允许";
+        $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
+        return;
+      }
+      showPageQr();
+    });
+  }).catch(function () {
+    $("allow-lan").hidden = false;
+    $("allow-lan-title").textContent = "没有完成允许";
+    $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
+  });
+});
+
+if ($("open-hotspot")) {
+  $("open-hotspot").addEventListener("click", function () {
+    fetch("/api/open-hotspot", { method: "POST" });
+  });
+}
 
 function applyRings(on) {
   const btn = $("rings-toggle");

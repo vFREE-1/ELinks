@@ -57,6 +57,7 @@ try {
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'rings') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'version') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'needAllow') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -89,11 +90,15 @@ try {
   if (-not $info.version) { throw "info.version missing" }
   if ($info.ssid -isnot [string]) { throw "info.ssid must be a string" }
   if ($info.wifiJoin -isnot [bool]) { throw "info.wifiJoin must be a boolean" }
+  if ($info.needAllow -isnot [bool]) { throw "info.needAllow must be a boolean" }
+  if ($info.usb -isnot [bool]) { throw "info.usb must be a boolean" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
   if ($rawInfo -match "WIFI:") { throw "wifi payload leaked in info" }
 
   node (Join-Path $RootFull "scripts\verify-lanes.mjs")
   if ($LASTEXITCODE -ne 0) { throw "lanes verify failed" }
+  node (Join-Path $RootFull "scripts\verify-net.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "net verify failed" }
   $laneMod = ($RootFull -replace '\\', '/') + '/lanes.mjs'
   $expectLanes = node --input-type=module -e "import { lanesForLink } from 'file:///$laneMod'; process.stdout.write(String(lanesForLink($($info.linkMps))));"
   if ($LASTEXITCODE -ne 0) { throw "could not compute expected lanes" }
@@ -128,6 +133,7 @@ try {
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing
   if ($page.Headers["Cache-Control"] -ne "no-store") { throw "waiting page must not be cached" }
   if ($page.Content -match 'id="join-net"|id="wifi-qr"') { throw "served page still has a second qr" }
+  if ($page.Content -notmatch 'id="allow-lan"') { throw "served page is missing allow-lan" }
   if ($page.Content -notmatch 'id="join-wifi"') { throw "served page is missing the wifi join control" }
   if ($page.Content -notmatch 'join-wifi-title') { throw "served page still has the old wifi hint" }
   if ($page.Content -notmatch 'path-mark') { throw "served page is missing the folder icon" }
@@ -203,6 +209,11 @@ try {
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
   if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
   if ($index -notmatch 'id="join-wifi"') { throw "wifi join control missing" }
+  if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }
+  if ($index -notmatch 'id="open-hotspot"') { throw "hotspot settings control missing" }
+  $allow = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.ps1") -Raw
+  if ($allow -notmatch 'Elinks receiver 8730') { throw "allow-lan script must name the firewall rule" }
+  if ($allow -notmatch 'profile=any') { throw "allow-lan script must cover public profiles" }
   if ($index -notmatch 'join-wifi-title') { throw "wifi join copy should explain why the receive code fails" }
   if ($index -notmatch 'path-mark') { throw "save path should use a folder icon" }
   if ($index -match '<i class=.path-mark') { throw "save path mark is still a square" }
@@ -247,7 +258,7 @@ try {
     Pop-Location
   }
 
-  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=$($info.lanes) desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin)"
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=$($info.lanes) desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin) needAllow=$($info.needAllow) usb=$($info.usb)"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force

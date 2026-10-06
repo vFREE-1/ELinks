@@ -794,12 +794,9 @@ html.is-phone #open-dir { display: none; }
 
 .update-status a { color: var(--blue); }
 
-.sheet p {
-  margin: 10px 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.65;
-  letter-spacing: var(--tracking-body);
+.sheet #open-hotspot {
+  display: block;
+  margin: 8px 0 12px;
 }
 
 .phone {
