@@ -163,6 +163,11 @@ try {
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }
   if ($css -notmatch '\.brand \{[\s\S]{0,180}white-space:\s*nowrap') { throw "toolbar brand must stay on one row" }
   if ($css -match '\.ripples i \{[\s\S]{0,500}animation:\s*none') { throw "ripple rings must keep moving" }
+  if ($css -notmatch '--sky') { throw "sky blue token missing" }
+  if ($css -notmatch 'scale\(var\(--ring-scale') { throw "waiting rings must reach the window edges" }
+  if ($css -match 'scale\(3\.5\)') { throw "waiting rings still stop short of the window" }
+  if ($css -notmatch '87,\s*199,\s*255|#57c7ff') { throw "waiting rings should be sky blue" }
+  if ($index -notmatch '<div class="app">[\s\S]{0,160}<div class="ripples"') { throw "waiting rings must sit behind the whole window" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

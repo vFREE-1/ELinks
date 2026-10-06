@@ -3,6 +3,7 @@
   --muted: #6e6e73;
   --line: rgba(0, 0, 0, 0.08);
   --blue: #1f6feb;
+  --sky: #57c7ff;
   --track: #e8eef6;
   --white: #ffffff;
   --tracking-display: 0.12em;
@@ -63,28 +64,32 @@ a.text:hover { color: #154ea8; }
 
 .ripples i {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: var(--qr-x, 50%);
+  top: var(--qr-y, 50%);
   width: var(--qr-size, 248px);
   height: var(--qr-size, 248px);
   margin: calc(var(--qr-size, 248px) / -2) 0 0 calc(var(--qr-size, 248px) / -2);
-  border: 1.35px solid rgba(88, 166, 244, 0.78);
+  border: 1.5px solid rgba(87, 199, 255, 0.82);
   border-radius: 50%;
   opacity: 0;
-  animation: ring-out 3.6s cubic-bezier(0.22, 0.55, 0.32, 1) infinite;
+  box-shadow: 0 0 18px rgba(87, 199, 255, 0.22);
+  animation: ring-out 4.4s cubic-bezier(0.22, 0.55, 0.32, 1) infinite;
 }
 
 .ripples i:nth-child(1) { animation-delay: 0s; }
-.ripples i:nth-child(2) { animation-delay: -0.6s; }
-.ripples i:nth-child(3) { animation-delay: -1.2s; }
-.ripples i:nth-child(4) { animation-delay: -1.8s; }
-.ripples i:nth-child(5) { animation-delay: -2.4s; }
-.ripples i:nth-child(6) { animation-delay: -3s; }
+.ripples i:nth-child(2) { animation-delay: -0.73s; }
+.ripples i:nth-child(3) { animation-delay: -1.46s; }
+.ripples i:nth-child(4) { animation-delay: -2.2s; }
+.ripples i:nth-child(5) { animation-delay: -2.93s; }
+.ripples i:nth-child(6) { animation-delay: -3.66s; }
 
 @keyframes ring-out {
-  0% { transform: scale(1.04); opacity: 0.58; }
-  100% { transform: scale(3.5); opacity: 0; }
+  0% { transform: scale(1.02); opacity: 0.62; }
+  100% { transform: scale(var(--ring-scale, 8)); opacity: 0; }
 }
+
+html.is-busy .ripples,
+html.is-phone .ripples { display: none; }
 
 .app {
   position: relative;
@@ -103,6 +108,8 @@ html:not(.is-busy):not(.is-phone) .status {
 }
 
 .top {
+  position: relative;
+  z-index: 1;
   height: 40px;
   flex: none;
   display: flex;
@@ -126,7 +133,7 @@ html.is-desktop .top {
 }
 
 html.is-desktop:not(.is-busy):not(.is-phone) .top {
-  background: #fff;
+  background: transparent;
 }
 
 html.is-desktop.is-busy .top,
@@ -248,6 +255,8 @@ button.nav:hover {
 html:not(.is-busy) .live-dot { animation: pulse 2.8s ease-in-out infinite; }
 
 .stage {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -399,6 +408,8 @@ html.is-desktop .listen {
 .address-box.stage-in { animation-delay: 0.1s; }
 
 .busy {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   display: none;
@@ -585,6 +596,7 @@ html.is-busy .busy { display: flex; }
 
 .status {
   position: relative;
+  z-index: 1;
   flex: none;
   height: 36px;
   border-top: 1px solid var(--line);
@@ -682,6 +694,8 @@ html.is-phone #open-dir { display: none; }
 
 .phone {
   display: none;
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   align-items: center;

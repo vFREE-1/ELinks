@@ -170,11 +170,25 @@ function sizeCanvas(canvas, ctx, width, height) {
 }
 
 function placeRipples() {
-  const stage = document.querySelector(".stage");
-  if (!stage || !plate) return;
+  const layer = document.querySelector(".ripples");
+  const app = document.querySelector(".app");
+  if (!layer || !app || !plate) return;
   const qrBox = plate.getBoundingClientRect();
-  if (qrBox.width < 8) return;
-  stage.style.setProperty("--qr-size", Math.round(qrBox.width) + "px");
+  const appBox = app.getBoundingClientRect();
+  if (qrBox.width < 8 || appBox.width < 8) return;
+  const cx = qrBox.left + qrBox.width / 2 - appBox.left;
+  const cy = qrBox.top + qrBox.height / 2 - appBox.top;
+  const reach = Math.max(
+    Math.hypot(cx, cy),
+    Math.hypot(appBox.width - cx, cy),
+    Math.hypot(cx, appBox.height - cy),
+    Math.hypot(appBox.width - cx, appBox.height - cy)
+  );
+  const scale = Math.max(4, (reach * 2.08) / qrBox.width);
+  layer.style.setProperty("--qr-size", Math.round(qrBox.width) + "px");
+  layer.style.setProperty("--qr-x", Math.round(cx) + "px");
+  layer.style.setProperty("--qr-y", Math.round(cy) + "px");
+  layer.style.setProperty("--ring-scale", scale.toFixed(3));
 }
 
 function resizeField() {

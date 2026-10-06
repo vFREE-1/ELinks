@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=fit4" />
+  <link rel="stylesheet" href="styles.css?v=sky1" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
 </head>
 <body>
   <div class="app">
+    <div class="ripples" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
     <header class="top">
       <div class="brand">
         <img class="brand-mark" src="assets/mark.svg" width="20" height="20" alt="" />
@@ -35,9 +38,6 @@
 
     <section class="stage" aria-label="等待接收">
       <div class="stage-main">
-        <div class="ripples" aria-hidden="true">
-          <i></i><i></i><i></i><i></i><i></i><i></i>
-        </div>
         <div class="listen">
           <div class="plate">
             <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
@@ -128,7 +128,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=fit4"></script>
-  <script src="live.js?v=fit4"></script>
+  <script src="app.js?v=sky1"></script>
+  <script src="live.js?v=sky1"></script>
 </body>
 </html>
