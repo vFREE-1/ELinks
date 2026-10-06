@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
-import { isUsbAddress, parseReachProbe, pickLanIp } from "./net.mjs";
+import { isUsbAddress, parseAllowResult, parseReachProbe, pickLanIp } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
 
@@ -135,16 +135,38 @@ function refreshReach() {
   return reachInflight;
 }
 
+function psQuote(value) {
+  return "'" + String(value).replace(/'/g, "''") + "'";
+}
+
 async function allowLan() {
-  const script = path.join(ROOT, "scripts", "allow-lan.ps1");
+  const cmd = path.join(ROOT, "scripts", "allow-lan.cmd");
+  const resultPath = path.join(DATA, "allow-lan.result");
   const ip = lanIp();
+  fs.mkdirSync(DATA, { recursive: true });
+  try {
+    fs.unlinkSync(resultPath);
+  } catch {
+    /* no previous result */
+  }
   await execFileAsync("powershell.exe", [
     "-NoProfile",
     "-Command",
-    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -ArgumentList @('-NoProfile','-File','${script}','-LanIp','${ip}')`
+    `Start-Process -FilePath ${psQuote(cmd)} -Verb RunAs -Wait -ArgumentList @(${psQuote(ip)},${psQuote(process.execPath)})`
   ], { timeout: 180000, windowsHide: true, encoding: "utf8" });
+  let result = "";
+  try {
+    result = fs.readFileSync(resultPath, "utf8");
+  } catch {
+    result = "";
+  }
   reachAt = 0;
-  return refreshReach();
+  const reach = await refreshReach();
+  if (!reach.open) {
+    const parsed = parseAllowResult(result);
+    throw new Error(parsed.ok ? "still closed" : parsed.error);
+  }
+  return reach;
 }
 
 function openHotspot() {

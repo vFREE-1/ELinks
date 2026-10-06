@@ -1,4 +1,4 @@
-import { inboundOpen, isUsbAddress, parseCategory, parseReachProbe, pickLanIp } from "../net.mjs";
+import { inboundOpen, isUsbAddress, parseAllowResult, parseCategory, parseReachProbe, pickLanIp } from "../net.mjs";
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -26,5 +26,8 @@ assert(parseReachProbe("ELINKS=1 APPALLOW=2 APPBLOCK=2").open === false, "progra
 assert(parseReachProbe("ELINKS=0 APPALLOW=0 APPBLOCK=0").open === false, "default deny");
 assert(inboundOpen({ elinks: 0, appAllow: 1, appBlock: 0 }) === true, "inboundOpen allow");
 assert(inboundOpen({ elinks: 1, appAllow: 0, appBlock: 1 }) === false, "inboundOpen block");
+assert(parseAllowResult("ALLOW_LAN_OK").ok === true, "allow result ok");
+assert(parseAllowResult("ALLOW_LAN_ERR still blocked: Electron").ok === false, "allow result err");
+assert(parseAllowResult("").error === "allow failed", "empty allow result");
 
 console.log("NET_OK");

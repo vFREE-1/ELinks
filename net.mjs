@@ -64,3 +64,12 @@ export function inboundOpen(probe) {
   if (appBlock > 0) return false;
   return elinks > 0 || appAllow > 0;
 }
+
+export function parseAllowResult(text) {
+  const raw = String(text || "").trim();
+  if (raw === "ALLOW_LAN_OK" || raw.startsWith("ALLOW_LAN_OK")) {
+    return { ok: true, error: "" };
+  }
+  const error = raw.replace(/^ALLOW_LAN_ERR\s*/i, "").trim();
+  return { ok: false, error: error || "allow failed" };
+}

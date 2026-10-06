@@ -183,10 +183,10 @@ $("allow-lan").addEventListener("click", function (event) {
     return refreshLink().then(function () {
       allowing = false;
       $("allow-lan").disabled = false;
-      if (data && data.ok === false) {
+      if ((data && data.ok === false) || (info && info.needAllow)) {
         $("allow-lan").hidden = false;
-        $("allow-lan-title").textContent = "没有完成允许";
-        $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
+        $("allow-lan-title").textContent = "还是连不进来";
+        $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。确认后窗口会自己关掉。";
         return;
       }
       showPageQr();

@@ -223,7 +223,13 @@ try {
   if ($index -notmatch 'id="open-hotspot"') { throw "hotspot settings control missing" }
   $allow = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.ps1") -Raw
   if ($allow -notmatch 'Elinks receiver 8730') { throw "allow-lan script must name the firewall rule" }
-  if ($allow -notmatch 'profile=any') { throw "allow-lan script must cover public profiles" }
+  if ($allow -notmatch '-Profile Any') { throw "allow-lan script must cover public profiles" }
+  if ($allow -notmatch 'allow-lan.result') { throw "allow-lan script must write a result file" }
+  if ($allow -match 'Enabled -eq "True"') { throw "Enabled -eq True misses firewall enum values" }
+  $allowCmd = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.cmd") -Raw
+  if ($allowCmd -notmatch 'ExecutionPolicy Bypass') { throw "elevated allow-lan must bypass execution policy" }
+  if ($mainSrv -notmatch 'allow-lan.cmd') { throw "allow-lan must launch the cmd wrapper so RunAs keeps the script path" }
+  if ($mainSrv -notmatch 'allow-lan.result') { throw "allow-lan must read the elevated result file" }
   if ($index -notmatch 'join-wifi-title') { throw "wifi join copy should explain why the receive code fails" }
   if ($index -notmatch 'path-mark') { throw "save path should use a folder icon" }
   if ($index -match '<i class=.path-mark') { throw "save path mark is still a square" }
