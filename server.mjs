@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { PassThrough } from "node:stream";
 import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
@@ -18,6 +19,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(ROOT, "data");
 const CONFIG_PATH = path.join(DATA, "config.json");
 const DEFAULT_SAVE = path.join(ROOT, "received");
+const execFileAsync = promisify(execFile);
 const PORT = 8730;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".svg", ".png", ".ico"]);
 
@@ -93,13 +95,14 @@ function usbLinked() {
 }
 
 let reachAt = 0;
-let reachValue = { needAllow: false, publicNet: false, usb: false };
+let reachInflight = null;
+let reachValue = { needAllow: false, publicNet: false, usb: false, open: true };
 
-function readReach() {
+async function readReach() {
   const usb = usbLinked();
   if (process.platform !== "win32") return { needAllow: false, publicNet: false, usb, open: true };
   try {
-    const probeText = execFileSync("powershell.exe", [
+    const { stdout } = await execFileAsync("powershell.exe", [
       "-NoProfile",
       "-Command",
       [
@@ -109,7 +112,7 @@ function readReach() {
         "Write-Output (\"ELINKS=$elinks APPALLOW=$appAllow APPBLOCK=$appBlock\")"
       ].join("; ")
     ], { timeout: 8000, windowsHide: true, encoding: "utf8" });
-    const probe = parseReachProbe(probeText);
+    const probe = parseReachProbe(stdout);
     return { needAllow: !probe.open, publicNet: !probe.open, usb, open: probe.open };
   } catch {
     return { needAllow: true, publicNet: true, usb, open: false };
@@ -117,21 +120,31 @@ function readReach() {
 }
 
 function currentReach() {
-  if (Date.now() - reachAt < 1500) return reachValue;
-  reachValue = readReach();
-  reachAt = Date.now();
   return reachValue;
 }
 
-function allowLan() {
+function refreshReach() {
+  if (reachInflight) return reachInflight;
+  reachInflight = readReach().then((value) => {
+    reachValue = value;
+    reachAt = Date.now();
+    return value;
+  }).finally(() => {
+    reachInflight = null;
+  });
+  return reachInflight;
+}
+
+async function allowLan() {
   const script = path.join(ROOT, "scripts", "allow-lan.ps1");
   const ip = lanIp();
-  execFileSync("powershell.exe", [
+  await execFileAsync("powershell.exe", [
     "-NoProfile",
     "-Command",
-    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-File','${script}','-LanIp','${ip}')`
-  ], { timeout: 120000, windowsHide: true, encoding: "utf8" });
+    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -ArgumentList @('-NoProfile','-File','${script}','-LanIp','${ip}')`
+  ], { timeout: 180000, windowsHide: true, encoding: "utf8" });
   reachAt = 0;
+  return refreshReach();
 }
 
 function openHotspot() {
@@ -415,7 +428,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/info") {
       const cfg = loadConfig();
       const link = await currentLink();
-      const reach = currentReach();
+      const reach = !reachAt || Date.now() - reachAt > 2500 ? await refreshReach() : currentReach();
       sendJson(res, {
         host: `${lanIp()}:${PORT}`,
         savePath: cfg.savePath,
@@ -511,8 +524,8 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       try {
-        allowLan();
-        sendJson(res, { ok: true, ...currentReach() });
+        const reach = await allowLan();
+        sendJson(res, { ok: true, ...reach });
       } catch (err) {
         sendJson(res, { ok: false, error: String(err && err.message ? err.message : err) });
       }
@@ -567,6 +580,7 @@ export { PORT, lanIp, server };
 export function startServer() {
   loadConfig();
   linkMps();
+  refreshReach().catch(() => {});
   server.maxConnections = 128;
   if (server.listening) return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
   return new Promise((resolve, reject) => {

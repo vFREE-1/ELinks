@@ -84,7 +84,10 @@ function applyMatrix(matrix) {
 }
 
 function networkName() {
-  return info && info.ssid ? "「" + info.ssid + "」" : "";
+  const ssid = info && String(info.ssid || "").trim();
+  if (ssid) return "「" + ssid + "」";
+  if (info && info.wifiJoin) return "电脑正在用的 Wi-Fi";
+  return "";
 }
 
 function showPageQr() {
@@ -156,16 +159,30 @@ async function loadWifiJoin() {
   showPageQr();
 }
 
-$("join-wifi").addEventListener("click", function () {
+$("join-wifi").addEventListener("click", function (event) {
+  event.preventDefault();
+  if (!wifiMatrix) {
+    $("join-wifi").hidden = false;
+    $("join-wifi-title").textContent = "现在还不能换码";
+    $("join-wifi-copy").textContent = "没有读到这个 Wi-Fi 的加入码，请稍后再点。";
+    return;
+  }
   if (qrMode === "wifi") showPageQr();
   else showWifiQr();
 });
 
-$("allow-lan").addEventListener("click", function () {
-  $("allow-lan-title").textContent = "等待系统确认…";
-  $("allow-lan-copy").textContent = "请在系统确认窗口点是。这不是连 Wi-Fi。";
+let allowing = false;
+$("allow-lan").addEventListener("click", function (event) {
+  event.preventDefault();
+  if (allowing) return;
+  allowing = true;
+  $("allow-lan").disabled = true;
+  $("allow-lan-title").textContent = "请在系统窗口点「是」";
+  $("allow-lan-copy").textContent = "正在请求允许手机连入，这不是连 Wi-Fi。";
   fetch("/api/allow-lan", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
     return refreshLink().then(function () {
+      allowing = false;
+      $("allow-lan").disabled = false;
       if (data && data.ok === false) {
         $("allow-lan").hidden = false;
         $("allow-lan-title").textContent = "没有完成允许";
@@ -175,6 +192,8 @@ $("allow-lan").addEventListener("click", function () {
       showPageQr();
     });
   }).catch(function () {
+    allowing = false;
+    $("allow-lan").disabled = false;
     $("allow-lan").hidden = false;
     $("allow-lan-title").textContent = "没有完成允许";
     $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";

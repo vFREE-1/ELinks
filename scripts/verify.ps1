@@ -217,7 +217,8 @@ try {
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
-  if ($mainSrv -notmatch 'WindowStyle Hidden') { throw "allow-lan elevation should hide the PowerShell window" }
+  if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
+  if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }
   if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }
   if ($index -notmatch 'id="open-hotspot"') { throw "hotspot settings control missing" }
   $allow = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.ps1") -Raw

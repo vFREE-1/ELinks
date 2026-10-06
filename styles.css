@@ -359,6 +359,11 @@ html.is-phone .stage { display: none; }
 
 .stage .join-wifi:hover { background: rgba(31, 111, 235, 0.1); }
 
+.stage .join-wifi:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .stage .join-wifi strong {
   font-size: 14px;
   font-weight: 600;
