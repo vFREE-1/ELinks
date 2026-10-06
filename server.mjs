@@ -85,13 +85,14 @@ function loadConfig() {
     if (data && typeof data === "object") {
       return {
         savePath: String(data.savePath || DEFAULT_SAVE),
-        password: String(data.password || "")
+        password: String(data.password || ""),
+        rings: data.rings !== false
       };
     }
   } catch {
     /* default */
   }
-  return { savePath: DEFAULT_SAVE, password: "" };
+  return { savePath: DEFAULT_SAVE, password: "", rings: true };
 }
 
 function saveConfig(cfg) {
@@ -106,7 +107,11 @@ function saveRoot() {
 }
 
 function phoneUrl() {
-  return `http://${lanIp()}:${PORT}/?phone=1&t=${pairToken}`;
+  const cfg = loadConfig();
+  const query = new URLSearchParams({ phone: "1", t: pairToken });
+  const pass = String(cfg.password || "").trim();
+  if (pass) query.set("p", pass);
+  return `http://${lanIp()}:${PORT}/?${query.toString()}`;
 }
 
 function qrMatrixFor(text) {
@@ -358,7 +363,8 @@ const server = http.createServer(async (req, res) => {
         lanes: LANES,
         linkMps: Math.round(linkMps()),
         ssid: link.ssid,
-        wifiJoin: link.wifiJoin
+        wifiJoin: link.wifiJoin,
+        rings: cfg.rings !== false
       });
       return;
     }
@@ -404,8 +410,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/open-dir") {
-      execFile("explorer.exe", [saveRoot()]);
-      sendJson(res, { ok: true });
+      const cfg = loadConfig();
+      const requested = String(url.searchParams.get("path") || "").trim();
+      if (requested) cfg.savePath = requested;
+      fs.mkdirSync(path.resolve(cfg.savePath), { recursive: true });
+      saveConfig(cfg);
+      const root = path.resolve(cfg.savePath);
+      execFile("explorer.exe", [root], { windowsHide: true });
+      sendJson(res, { ok: true, savePath: root });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/config") {
@@ -413,9 +425,10 @@ const server = http.createServer(async (req, res) => {
       const cfg = loadConfig();
       if ("savePath" in incoming) cfg.savePath = String(incoming.savePath || "").trim() || cfg.savePath;
       if ("password" in incoming) cfg.password = String(incoming.password);
+      if ("rings" in incoming) cfg.rings = incoming.rings !== false;
       fs.mkdirSync(path.resolve(cfg.savePath), { recursive: true });
       saveConfig(cfg);
-      sendJson(res, { ok: true, savePath: cfg.savePath, passwordSet: Boolean(String(cfg.password).trim()) });
+      sendJson(res, { ok: true, savePath: cfg.savePath, passwordSet: Boolean(String(cfg.password).trim()), rings: cfg.rings !== false });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/pair") {

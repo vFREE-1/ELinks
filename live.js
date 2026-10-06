@@ -26,11 +26,12 @@ async function boot() {
   if (info.lanes) MAX_CONN = info.lanes;
   LINKS.memory.host = info.host;
   LINKS.memory.path = info.savePath;
-  $("desk-host").value = info.host;
+  $("desk-host").value = info.phoneUrl || info.host;
   $("host").value = info.host;
   $("save-path").value = info.savePath;
   $("save-path-bar").value = info.savePath;
   $("pass-flag").hidden = !info.passwordSet;
+  applyRings(info.rings !== false);
   if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
   if ($("now-mps")) $("now-mps").textContent = "0";
   $("today").textContent = "今天已接收 0 个文件";
@@ -51,8 +52,9 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   if (params.get("phone") === "1") {
     if (params.get("t")) info.token = params.get("t");
+    if (params.get("p")) $("join-password").value = params.get("p");
     LINKS.showPhone();
-    pair(false);
+    pair(Boolean(params.get("p")));
   }
 
   pollTransfers();
@@ -122,12 +124,44 @@ $("join-wifi").addEventListener("click", function () {
   else showWifiQr();
 });
 
+function applyRings(on) {
+  const btn = $("rings-toggle");
+  if (btn) {
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  }
+  document.documentElement.classList.toggle("rings-off", !on);
+  try { localStorage.setItem("links.rings", on ? "1" : "0"); } catch (err) {}
+}
+
+function randomPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += chars[bytes[i] % chars.length];
+  return out;
+}
+
+async function refreshLink() {
+  info = await fetch("/api/info").then(function (res) { return res.json(); });
+  $("desk-host").value = info.phoneUrl || info.host;
+  $("host").value = info.host;
+  const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
+  if (qr.matrix && qr.matrix.length) {
+    pageMatrix = qr.matrix;
+    if (qrMode === "page") applyMatrix(pageMatrix);
+  }
+}
+
 function persistConfig() {
+  const ringsOn = !$("rings-toggle") || $("rings-toggle").getAttribute("aria-checked") !== "false";
   const body = {
     savePath: $("save-path-bar").value || $("save-path").value,
-    password: $("receive-password").value
+    password: $("receive-password").value,
+    rings: ringsOn
   };
-  fetch("/api/config", {
+  return fetch("/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
@@ -135,8 +169,11 @@ function persistConfig() {
     if (data.savePath) {
       $("save-path").value = data.savePath;
       $("save-path-bar").value = data.savePath;
+      LINKS.memory.path = data.savePath;
     }
     $("pass-flag").hidden = !data.passwordSet;
+    applyRings(data.rings !== false);
+    return refreshLink();
   }).catch(function () {});
 }
 
@@ -145,14 +182,50 @@ $("save-path-bar").addEventListener("change", persistConfig);
 $("receive-password").addEventListener("change", persistConfig);
 $("close-settings").addEventListener("click", persistConfig);
 
+$("random-password").addEventListener("click", function () {
+  $("receive-password").value = randomPassword();
+  LINKS.memory.password = $("receive-password").value;
+  persistConfig();
+});
+
+$("rings-toggle").addEventListener("click", function () {
+  applyRings($("rings-toggle").getAttribute("aria-checked") !== "true");
+  persistConfig();
+});
+
+$("copy-host").addEventListener("click", function () {
+  const raw = $("desk-host").value.trim();
+  const text = /^https?:\/\//i.test(raw) ? raw : "http://" + raw;
+  const done = function () {
+    $("copy-host").textContent = "已复制";
+    setTimeout(function () { $("copy-host").textContent = "复制"; }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function () {
+      $("desk-host").select();
+      document.execCommand("copy");
+      done();
+    });
+    return;
+  }
+  $("desk-host").select();
+  document.execCommand("copy");
+  done();
+});
+
 $("open-dir").addEventListener("click", function () {
   if (!LIVE) return;
-  fetch("/api/open-dir", { method: "GET" });
+  const savePath = $("save-path-bar").value || $("save-path").value;
+  persistConfig().then(function () {
+    fetch("/api/open-dir?path=" + encodeURIComponent(savePath));
+  });
 });
 
 async function pair(fromForm) {
   const payload = { token: info.token };
-  if (fromForm) payload.password = $("join-password").value;
+  const fromQuery = new URLSearchParams(location.search).get("p");
+  if (fromForm) payload.password = $("join-password").value || fromQuery || "";
+  else if (fromQuery) payload.password = fromQuery;
   const res = await fetch("/api/pair", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

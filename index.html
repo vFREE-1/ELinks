@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=sky3" />
+  <link rel="stylesheet" href="styles.css?v=set1" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -49,10 +49,10 @@
         <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
         <button type="button" class="text join-wifi" id="join-wifi" hidden>还没连上这个 Wi-Fi？</button>
         <label class="address-box">
-          <span>在手机里输入</span>
+          <span>在手机里打开或粘贴</span>
           <span class="address-field">
-            <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，可在手机中输入" />
-            <em>可输入</em>
+            <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，点击复制" />
+            <button type="button" class="copy-chip" id="copy-host">复制</button>
           </span>
         </label>
       </div>
@@ -63,8 +63,15 @@
       <label for="save-path">保存路径</label>
       <input id="save-path" spellcheck="false" autocomplete="off" />
       <label for="receive-password">接收密码</label>
-      <input id="receive-password" type="password" autocomplete="new-password" placeholder="留空则扫码或输入地址后直接进入" />
-      <p>手机扫码或输入地址之后，只有这里填了密码，才会出现密码框。路径会保留到下次打开。</p>
+      <div class="pass-row">
+        <input id="receive-password" type="text" autocomplete="off" placeholder="留空则扫码后直接进入" />
+        <button type="button" class="text" id="random-password">随机</button>
+      </div>
+      <div class="switch-row">
+        <span>背景动画</span>
+        <button type="button" class="switch on" id="rings-toggle" role="switch" aria-checked="true" aria-label="背景动画"></button>
+      </div>
+      <p>扫码和复制的地址会带上密码，手机不用再填。路径和动画开关会保留到下次打开。</p>
       <button type="button" class="text" id="close-settings">完成</button>
     </section>
 
@@ -128,7 +135,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=sky1"></script>
-  <script src="live.js?v=sky1"></script>
+  <script src="app.js?v=set1"></script>
+  <script src="live.js?v=set1"></script>
 </body>
 </html>

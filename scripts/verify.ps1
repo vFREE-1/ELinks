@@ -55,6 +55,7 @@ $needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'rings') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -82,6 +83,8 @@ try {
   if (-not $info.host) { throw "info.host missing" }
   if (-not $info.token) { throw "info.token missing" }
   if ($null -eq $info.linkMps) { throw "info.linkMps missing" }
+  if ($info.phoneUrl -notmatch 'phone=1') { throw "phoneUrl must be an explicit GET link" }
+  if ($info.PSObject.Properties.Name -notcontains 'rings') { throw "info.rings missing" }
   if ($info.ssid -isnot [string]) { throw "info.ssid must be a string" }
   if ($info.wifiJoin -isnot [bool]) { throw "info.wifiJoin must be a boolean" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
@@ -133,6 +136,28 @@ try {
   node (Join-Path $RootFull "scripts\verify-parallel.mjs")
   if ($LASTEXITCODE -ne 0) { throw "parallel verify failed" }
 
+  $passCfg = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json" -Body (@{ savePath = $Received; password = "vtest"; rings = $false } | ConvertTo-Json)
+  if (-not $passCfg.passwordSet) { throw "passwordSet should be true after setting a password" }
+  if ($passCfg.rings -ne $false) { throw "rings off should persist" }
+  $infoPass = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info"
+  if ($infoPass.phoneUrl -notmatch '[?&]p=vtest') { throw "QR and copied link should carry the password in GET" }
+  $needPass = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/pair" -Method POST -ContentType "application/json" -Body (@{ token = $info.token } | ConvertTo-Json)
+  if (-not $needPass.needPassword) { throw "pair without password should ask" }
+  $withPass = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/pair" -Method POST -ContentType "application/json" -Body (@{ token = $info.token; password = "vtest" } | ConvertTo-Json)
+  if (-not $withPass.ok) { throw "pair with GET password failed" }
+
+  $openDir = Assert-InsideRepo (Join-Path $Received ".verify-open-dir")
+  New-Item -ItemType Directory -Force -Path $openDir | Out-Null
+  Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json" -Body (@{ savePath = $openDir; password = ""; rings = $true } | ConvertTo-Json) | Out-Null
+  $opened = Invoke-RestMethod -Uri ("http://127.0.0.1:8730/api/open-dir?path=" + [Uri]::EscapeDataString($openDir))
+  $infoOpen = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info"
+  $gotSave = [IO.Path]::GetFullPath($infoOpen.savePath)
+  $wantSave = [IO.Path]::GetFullPath($openDir)
+  if ($gotSave -ne $wantSave) { throw "open-dir did not keep the new save path: $gotSave" }
+  Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json" -Body (@{ savePath = $Received; password = ""; rings = $true } | ConvertTo-Json) | Out-Null
+  $openDir = Assert-InsideRepo $openDir
+  if (Test-Path -LiteralPath $openDir) { Remove-Item -LiteralPath $openDir -Force -Recurse -ErrorAction SilentlyContinue }
+
   $pkg = Get-Content -LiteralPath (Join-Path $RootFull "package.json") -Raw | ConvertFrom-Json
   if ($pkg.scripts.dev -notmatch 'electron') { throw "package.json scripts.dev must start Electron" }
   if ($pkg.main -ne "desktop/main.mjs") { throw "package.json main must be desktop/main.mjs" }
@@ -154,6 +179,9 @@ try {
   if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
   if ($index -notmatch 'id="join-wifi"') { throw "wifi join control missing" }
   if ($index -match 'id="join-net"|id="wifi-qr"') { throw "waiting screen should keep a single qr" }
+  if ($index -notmatch 'id="copy-host"') { throw "copy address button missing" }
+  if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
+  if ($index -notmatch 'id="random-password"') { throw "random password button missing" }
   if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub">桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
@@ -172,6 +200,11 @@ try {
   if ($css -match 'scale\(3\.5\)') { throw "waiting rings still stop short of the window" }
   if ($css -notmatch '87,\s*199,\s*255|#57c7ff') { throw "waiting rings should be sky blue" }
   if ($index -notmatch '<div class="app">[\s\S]{0,160}<div class="ripples"') { throw "waiting rings must sit behind the whole window" }
+  if ($css -notmatch '\.switch\.on') { throw "animation switch style missing" }
+  if ($css -notmatch 'rings-off') { throw "animation off class missing" }
+  $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
+  if ($live -notmatch 'open-dir\?path=') { throw "open-dir must send the current save path" }
+  if ($live -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull
