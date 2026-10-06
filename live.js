@@ -33,10 +33,6 @@ async function boot() {
   $("pass-flag").hidden = !info.passwordSet;
   if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
   if ($("now-mps")) $("now-mps").textContent = "0";
-  $("demo-list").hidden = true;
-  $("demo-done").hidden = true;
-  $("live-list").hidden = false;
-  $("live-done").hidden = false;
   $("today").textContent = "今天已接收 0 个文件";
   $("active-count").textContent = "等待发送";
   $("mbps").textContent = "0";

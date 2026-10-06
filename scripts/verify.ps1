@@ -121,10 +121,14 @@ try {
   if (($index | Select-String -Pattern '<div class="ripples"' -Context 0,1) -and ($index -notmatch '<i></i><i></i><i></i><i></i><i></i><i></i>')) {
     throw "waiting ripples should keep six rings"
   }
-  if ($index -notmatch 'is-desktop') { throw "desktop chrome class missing" }
+  if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
+  if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
+  if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
   if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
+  if ($css -notmatch '\.stage-copy') { throw "QR caption CSS missing" }
+  if ($css -match '\.ripples i \{[\s\S]{0,500}animation:\s*none') { throw "ripple rings must keep moving" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull
