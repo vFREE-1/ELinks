@@ -58,6 +58,7 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'rings') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'version') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'needAllow') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'path') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -92,6 +93,7 @@ try {
   if ($info.wifiJoin -isnot [bool]) { throw "info.wifiJoin must be a boolean" }
   if ($info.needAllow -isnot [bool]) { throw "info.needAllow must be a boolean" }
   if ($info.usb -isnot [bool]) { throw "info.usb must be a boolean" }
+  if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
   if ($rawInfo -match "WIFI:") { throw "wifi payload leaked in info" }
 
@@ -208,7 +210,11 @@ try {
   }
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
   if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
-  if ($index -notmatch 'id="join-wifi"') { throw "wifi join control missing" }
+  if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
+  $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
+  if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
+  $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
+  if ($mainSrv -notmatch 'WindowStyle Hidden') { throw "allow-lan elevation should hide the PowerShell window" }
   if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }
   if ($index -notmatch 'id="open-hotspot"') { throw "hotspot settings control missing" }
   $allow = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.ps1") -Raw

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=set4" />
+  <link rel="stylesheet" href="styles.css?v=set5" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -47,13 +47,13 @@
       <div class="stage-copy">
         <h1 id="stage-title">等待接收</h1>
         <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
-        <button type="button" class="join-wifi" id="allow-lan" hidden>
-          <strong id="allow-lan-title">手机扫了却打不开？</strong>
-          <span id="allow-lan-copy">不是网络错了，是电脑挡住了手机。点这里允许连入，系统会弹出一次确认。</span>
-        </button>
         <button type="button" class="join-wifi" id="join-wifi" hidden>
-          <strong id="join-wifi-title">手机扫了却打不开？</strong>
-          <span id="join-wifi-copy">点这里，改扫加入电脑 Wi-Fi 的码，不用输密码</span>
+          <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
+          <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
+        </button>
+        <button type="button" class="join-wifi" id="allow-lan" hidden>
+          <strong id="allow-lan-title">已经连着，但扫码打不开？</strong>
+          <span id="allow-lan-copy">点这里让电脑放行。只会弹出一次系统确认，不是连 Wi-Fi。</span>
         </button>
         <label class="address-box">
           <span>在手机里打开或粘贴</span>
@@ -84,7 +84,7 @@
       </div>
       <p class="update-status" id="update-status"></p>
       <button type="button" class="text" id="open-hotspot">打开电脑热点设置</button>
-      <p>扫码和复制的地址会带上密码，手机不用再填。路径和动画开关会保留到下次打开。插着数据线时，请在手机上打开 USB 网络共享，程序会改走这条线，不用自己找手机文件夹。</p>
+      <p>插数据线后，在手机上打开 USB 网络共享。选照片仍在手机网页里完成，文件会优先走这条线，不用在电脑上翻手机文件夹。</p>
       <button type="button" class="text" id="close-settings">完成</button>
     </section>
 
@@ -154,7 +154,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=set4"></script>
-  <script src="live.js?v=set4"></script>
+  <script src="app.js?v=set5"></script>
+  <script src="live.js?v=set5"></script>
 </body>
 </html>

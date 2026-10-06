@@ -118,7 +118,7 @@ function readReach() {
 }
 
 function currentReach() {
-  if (Date.now() - reachAt < 4000) return reachValue;
+  if (Date.now() - reachAt < 1500) return reachValue;
   reachValue = readReach();
   reachAt = Date.now();
   return reachValue;
@@ -130,7 +130,7 @@ function allowLan() {
   execFileSync("powershell.exe", [
     "-NoProfile",
     "-Command",
-    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -ArgumentList @('-NoProfile','-File','${script}','-LanIp','${ip}')`
+    `Start-Process -FilePath powershell.exe -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-File','${script}','-LanIp','${ip}')`
   ], { timeout: 120000, windowsHide: true, encoding: "utf8" });
   reachAt = 0;
 }
@@ -431,7 +431,8 @@ const server = http.createServer(async (req, res) => {
         version: APP_VERSION,
         needAllow: reach.needAllow,
         publicNet: reach.publicNet,
-        usb: reach.usb
+        usb: reach.usb,
+        path: reach.usb ? "usb" : "wifi"
       });
       return;
     }

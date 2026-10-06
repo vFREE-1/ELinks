@@ -60,7 +60,16 @@ async function boot() {
 
   pollTransfers();
   pollTimer = setInterval(pollTransfers, 400);
-  if (params.get("phone") !== "1") checkForUpdate(false);
+  if (params.get("phone") !== "1") {
+    checkForUpdate(false);
+    setInterval(function () {
+      const prevHost = info && info.host;
+      const prevUsb = info && info.usb;
+      refreshLink().then(function () {
+        if (info && (info.host !== prevHost || info.usb !== prevUsb)) showPageQr();
+      }).catch(function () {});
+    }, 2500);
+  }
 }
 
 let pageMatrix = null;
@@ -84,14 +93,18 @@ function showPageQr() {
   $("stage-title").textContent = "等待接收";
   const name = networkName();
   if (wifiMatrix) {
-    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。";
-    $("join-wifi").hidden = Boolean(info && info.needAllow);
-    $("join-wifi-title").textContent = "手机还没连这个 Wi-Fi？";
-    $("join-wifi-copy").textContent = "点这里，改扫加入" + name + "的码，不用输密码。";
+    $("join-wifi").hidden = false;
+    $("join-wifi-title").textContent = "要连这个 Wi-Fi？";
+    $("join-wifi-copy").textContent = "点这里，大码换成加入" + name + "的码。弹出后点加入，不用输密码。";
   } else {
     $("join-wifi").hidden = true;
-    if (name) $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
-    else $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+  }
+  if (info && info.usb) {
+    $("stage-lead").textContent = "数据线已接上。扫码后仍在手机里选照片，文件走这条线，不用在电脑上翻文件夹。";
+  } else if (name) {
+    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。要先连 Wi-Fi" + name + "，再扫这个码。";
+  } else {
+    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。手机要和这台电脑在同一个网络。";
   }
   showAllowLan();
 }
@@ -105,13 +118,12 @@ function showAllowLan() {
     return;
   }
   card.hidden = false;
-  $("stage-lead").textContent = "用手机相机扫这个码。若打不开，先点下面允许接入。";
-  $("allow-lan-title").textContent = "手机扫了却打不开？";
+  $("allow-lan-title").textContent = "已经连着，但扫码打不开？";
   if (info.usb) {
-    $("allow-lan-copy").textContent = "已检测到 USB 网络。点这里允许连入，系统会弹出一次确认。";
+    $("allow-lan-copy").textContent = "点这里让电脑放行数据线。只会弹出一次系统确认，不是连 Wi-Fi。";
     return;
   }
-  $("allow-lan-copy").textContent = "不是 Wi-Fi 错了，是电脑挡住了手机。点这里允许连入，系统会弹出一次确认。";
+  $("allow-lan-copy").textContent = "点这里让电脑放行。只会弹出一次系统确认，不是连 Wi-Fi。";
 }
 
 function showWifiQr() {
@@ -150,7 +162,7 @@ $("join-wifi").addEventListener("click", function () {
 
 $("allow-lan").addEventListener("click", function () {
   $("allow-lan-title").textContent = "等待系统确认…";
-  $("allow-lan-copy").textContent = "请在弹出的窗口里点是。";
+  $("allow-lan-copy").textContent = "请在系统确认窗口点是。这不是连 Wi-Fi。";
   fetch("/api/allow-lan", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
     return refreshLink().then(function () {
       if (data && data.ok === false) {
