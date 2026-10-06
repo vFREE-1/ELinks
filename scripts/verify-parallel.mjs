@@ -9,8 +9,6 @@ const RECEIVED = path.join(ROOT, "received");
 const NAME = "verify-parallel.bin";
 const DEST = path.join(RECEIVED, NAME);
 const SIZE = 12 * 1024 * 1024;
-const LANES = 6;
-const SLICE = SIZE / LANES;
 const HOST = "127.0.0.1";
 const PORT = 8730;
 
@@ -75,8 +73,12 @@ if (path.basename(ROOT) !== "links") throw new Error("unexpected repo folder");
 fs.mkdirSync(RECEIVED, { recursive: true });
 
 const health = await json("GET", "/api/health");
-if (!health.ok || health.runtime !== "node" || health.parallel !== true || health.lanes !== LANES) {
+const LANES = Number(health.lanes);
+if (!health.ok || health.runtime !== "node" || health.parallel !== true) {
   throw new Error(`health not parallel node: ${JSON.stringify(health)}`);
+}
+if (!Number.isInteger(LANES) || LANES < 2 || LANES > 12) {
+  throw new Error(`unexpected lane count: ${JSON.stringify(health)}`);
 }
 
 const info = await json("GET", "/api/info");
@@ -103,8 +105,9 @@ const started = Date.now();
 try {
   const jobs = [];
   for (let i = 0; i < LANES; i++) {
-    const offset = i * SLICE;
-    const slice = payload.subarray(offset, offset + SLICE);
+    const offset = Math.floor((SIZE * i) / LANES);
+    const end = Math.floor((SIZE * (i + 1)) / LANES);
+    const slice = payload.subarray(offset, end);
     const q = new URLSearchParams({
       session: pair.session,
       name: NAME,
@@ -123,7 +126,7 @@ try {
 const elapsed = Math.max(1, Date.now() - started);
 const stats = await json("GET", "/api/stats");
 const peak = Math.max(maxSeen, stats.maxInflight);
-if (peak < 4) throw new Error(`maxInflight ${peak} < 4 (want overlapping PUTs)`);
+if (peak < Math.min(LANES, 4)) throw new Error(`maxInflight ${peak} < ${Math.min(LANES, 4)} (want overlapping PUTs)`);
 if (!fs.existsSync(DEST)) throw new Error(`missing ${DEST}`);
 const got = fs.readFileSync(DEST);
 if (got.length !== SIZE) throw new Error(`size mismatch ${got.length}`);

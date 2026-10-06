@@ -1,6 +1,6 @@
 const LIVE = location.protocol === "http:" || location.protocol === "https:";
 const LINKS = window.Links;
-let MAX_CONN = 6;
+let MAX_CONN = 4;
 const SLICE = 4 * 1024 * 1024;
 
 let info = null;
@@ -41,7 +41,7 @@ async function boot() {
   $("mbs").textContent = "0 M/s";
   $("util").textContent = "0%";
   $("meter-fill").style.width = "0%";
-  $("lane-count").textContent = MAX_CONN + " 路并行 · 顶满带宽";
+  $("lane-count").textContent = MAX_CONN + " 路并行 · 按链路调整";
 
   const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
   if (qr.matrix && qr.matrix.length) {
@@ -84,9 +84,10 @@ function showPageQr() {
   $("stage-title").textContent = "等待接收";
   const name = networkName();
   if (wifiMatrix) {
-    $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。";
+    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。";
     $("join-wifi").hidden = false;
-    $("join-wifi").textContent = "还没连上" + name + "？";
+    $("join-wifi-title").textContent = "手机扫了却打不开？";
+    $("join-wifi-copy").textContent = "多半还没连上电脑的 Wi-Fi" + name + "。点这里，扫码加入，不用输密码。";
     return;
   }
   $("join-wifi").hidden = true;
@@ -99,10 +100,11 @@ function showWifiQr() {
   qrMode = "wifi";
   applyMatrix(wifiMatrix);
   $("qr").setAttribute("aria-label", "加入这台电脑所在 Wi-Fi 的二维码");
-  $("stage-title").textContent = "加入 Wi-Fi";
-  $("stage-lead").textContent = "用相机扫这个码，弹出后点加入" + networkName() + "。连上后点下面，再扫接收码。";
+  $("stage-title").textContent = "先加入这个 Wi-Fi";
+  $("stage-lead").textContent = "用相机扫上面的码，弹出后点加入" + networkName() + "。";
   $("join-wifi").hidden = false;
-  $("join-wifi").textContent = "已连上，显示接收码";
+  $("join-wifi-title").textContent = "已经加入了？";
+  $("join-wifi-copy").textContent = "点这里，换回接收码，再扫一次就会打开选照片。";
 }
 
 async function loadWifiJoin() {

@@ -10,6 +10,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
+import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -17,7 +18,6 @@ const DATA = path.join(ROOT, "data");
 const CONFIG_PATH = path.join(DATA, "config.json");
 const DEFAULT_SAVE = path.join(ROOT, "received");
 const PORT = 8730;
-const LANES = 6;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".svg", ".png", ".ico"]);
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
@@ -76,6 +76,10 @@ function linkMps() {
     nicMps = readNicMps();
   }
   return nicMps;
+}
+
+function laneCount() {
+  return lanesForLink(linkMps());
 }
 
 function loadConfig() {
@@ -349,7 +353,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     if (req.method === "GET" && url.pathname === "/api/health") {
-      sendJson(res, { ok: true, runtime: "node", parallel: true, lanes: LANES });
+      sendJson(res, { ok: true, runtime: "node", parallel: true, lanes: laneCount(), adaptive: true });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
@@ -361,7 +365,7 @@ const server = http.createServer(async (req, res) => {
         passwordSet: Boolean(String(cfg.password || "").trim()),
         token: pairToken,
         phoneUrl: phoneUrl(),
-        lanes: LANES,
+        lanes: laneCount(),
         linkMps: Math.round(linkMps()),
         ssid: link.ssid,
         wifiJoin: link.wifiJoin,
@@ -400,7 +404,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/stats") {
-      sendJson(res, { inflight: stats.inflight, maxInflight: stats.maxInflight, bytes: stats.bytes, lanes: LANES });
+      sendJson(res, { inflight: stats.inflight, maxInflight: stats.maxInflight, bytes: stats.bytes, lanes: laneCount() });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/stats/reset") {

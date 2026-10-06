@@ -341,9 +341,36 @@ html.is-phone .stage { display: none; }
 }
 
 .stage .join-wifi {
-  margin-top: 10px;
+  margin-top: 16px;
+  width: min(520px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  text-align: left;
+  border: 1px solid rgba(31, 111, 235, 0.28);
+  border-radius: 16px;
+  background: rgba(31, 111, 235, 0.06);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.stage .join-wifi:hover { background: rgba(31, 111, 235, 0.1); }
+
+.stage .join-wifi strong {
   font-size: 14px;
+  font-weight: 600;
+  color: var(--blue);
   letter-spacing: 0.04em;
+}
+
+.stage .join-wifi span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0.03em;
 }
 
 .stage .join-wifi[hidden] { display: none; }
@@ -852,13 +879,11 @@ button.fill:hover { background: #154ea8; }
 .status b { color: var(--ink); font-weight: 600; }
 
 .path-mark {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 15px;
+  height: 15px;
   margin-right: 8px;
-  border: 1.5px solid var(--blue);
-  border-radius: 1px;
-  vertical-align: -1px;
+  flex: none;
+  display: block;
 }
 
 @keyframes pulse {

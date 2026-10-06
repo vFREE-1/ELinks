@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.lanes -ne 6
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -92,6 +92,14 @@ try {
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
   if ($rawInfo -match "WIFI:") { throw "wifi payload leaked in info" }
 
+  node (Join-Path $RootFull "scripts\verify-lanes.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "lanes verify failed" }
+  $laneMod = ($RootFull -replace '\\', '/') + '/lanes.mjs'
+  $expectLanes = node --input-type=module -e "import { lanesForLink } from 'file:///$laneMod'; process.stdout.write(String(lanesForLink($($info.linkMps))));"
+  if ($LASTEXITCODE -ne 0) { throw "could not compute expected lanes" }
+  if ([int]$health.lanes -ne [int]$expectLanes) { throw "health.lanes $($health.lanes) should be $expectLanes for linkMps=$($info.linkMps)" }
+  if ([int]$info.lanes -ne [int]$expectLanes) { throw "info.lanes $($info.lanes) should be $expectLanes for linkMps=$($info.linkMps)" }
+
   $qrPage = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/qr-matrix?kind=page"
   if (-not $qrPage.matrix -or $qrPage.matrix.Count -lt 21) { throw "page qr missing" }
   if ($info.wifiJoin) {
@@ -117,6 +125,8 @@ try {
   if ($page.Headers["Cache-Control"] -ne "no-store") { throw "waiting page must not be cached" }
   if ($page.Content -match 'id="join-net"|id="wifi-qr"') { throw "served page still has a second qr" }
   if ($page.Content -notmatch 'id="join-wifi"') { throw "served page is missing the wifi join control" }
+  if ($page.Content -notmatch 'join-wifi-title') { throw "served page still has the old wifi hint" }
+  if ($page.Content -notmatch 'path-mark') { throw "served page is missing the folder icon" }
 
   $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
   if ($index -notmatch 'Elinks') { throw "brand should be Elinks" }
@@ -187,6 +197,10 @@ try {
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
   if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
   if ($index -notmatch 'id="join-wifi"') { throw "wifi join control missing" }
+  if ($index -notmatch 'join-wifi-title') { throw "wifi join copy should explain why the receive code fails" }
+  if ($index -notmatch 'path-mark') { throw "save path should use a folder icon" }
+  if ($index -match '<i class=.path-mark') { throw "save path mark is still a square" }
+  if ($index -match 'lane-count">6') { throw "lane count should not be hardcoded" }
   if ($index -match 'id="join-net"|id="wifi-qr"') { throw "waiting screen should keep a single qr" }
   if ($index -notmatch 'id="copy-host"') { throw "copy address button missing" }
   if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
@@ -227,7 +241,7 @@ try {
     Pop-Location
   }
 
-  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6 desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin)"
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=$($info.lanes) desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin)"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force
