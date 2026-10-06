@@ -116,6 +116,10 @@ try {
 
   node (Join-Path $RootFull "scripts\verify-update.mjs")
   if ($LASTEXITCODE -ne 0) { throw "update verify failed" }
+  $updSrc = Get-Content -LiteralPath (Join-Path $RootFull "update.mjs") -Raw
+  if ($updSrc -notmatch 'vFREE-1/ELinks') { throw "github update source missing" }
+  if ($updSrc -notmatch 'WHOAME/ELinks') { throw "gitee update source missing" }
+  if ($updSrc -match 'gitcode') { throw "gitcode should stay out of update sources" }
   $upd = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/update?local=1"
   if (-not $upd.ok) { throw "local update probe failed" }
   if ($upd.current -ne $info.version) { throw "update current mismatch $($upd.current)" }
@@ -133,6 +137,8 @@ try {
   if ($index -notmatch 'Power by EndLessGo - vFREE') { throw "footer credit missing" }
   if ($index -match '千兆局域网') { throw "header still uses a marketing link label" }
 
+  $clear = @{ savePath = $info.savePath; password = ""; rings = $true } | ConvertTo-Json -Compress
+  Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($clear)) | Out-Null
   $pair = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/pair" -Method POST -ContentType "application/json" -Body (@{ token = $info.token } | ConvertTo-Json)
   if (-not $pair.ok) { throw "pair failed: $($pair | ConvertTo-Json)" }
 

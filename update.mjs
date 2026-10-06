@@ -7,9 +7,8 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"))
 export const APP_VERSION = String(pkg.version || "0.1.0");
 
 export const UPDATE_SOURCES = [
-  { id: "github", kind: "github", url: "https://api.github.com/repos/EndLessGo/elinks/releases/latest" },
-  { id: "gitee", kind: "gitee", url: "https://gitee.com/api/v5/repos/EndLessGo/elinks/releases/latest" },
-  { id: "gitcode", kind: "generic", url: "https://raw.gitcode.com/EndLessGo/elinks/raw/main/latest.json" }
+  { id: "github", kind: "github", url: "https://api.github.com/repos/vFREE-1/ELinks/releases/latest" },
+  { id: "gitee", kind: "gitee", url: "https://gitee.com/api/v5/repos/WHOAME/ELinks/releases/latest" }
 ];
 
 export function parts(version) {
