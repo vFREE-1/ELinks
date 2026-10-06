@@ -16,6 +16,8 @@
 html, body {
   height: 100%;
   margin: 0;
+  overflow: hidden;
+  scrollbar-width: none;
   background: var(--white);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
@@ -24,6 +26,13 @@ html, body {
   letter-spacing: var(--tracking-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 button { font: inherit; color: inherit; }
@@ -80,6 +89,7 @@ a.text:hover { color: #154ea8; }
 .app {
   position: relative;
   height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: transparent;
@@ -93,11 +103,13 @@ html:not(.is-busy):not(.is-phone) .status {
 }
 
 .top {
-  height: 52px;
+  height: 40px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
   padding: 0 22px;
   border-bottom: 1px solid transparent;
   background: rgba(255, 255, 255, 0.72);
@@ -105,7 +117,7 @@ html:not(.is-busy):not(.is-phone) .status {
 }
 
 html.is-desktop .top {
-  height: env(titlebar-area-height, 52px);
+  height: env(titlebar-area-height, 40px);
   padding-left: 14px;
   padding-right: calc(12px + max(0px, 100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100%)));
   background: #fff;
@@ -128,28 +140,36 @@ html.is-desktop .top-nav {
   -webkit-app-region: no-drag;
 }
 
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand {
+  display: flex;
+  flex-direction: row;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
 
 .brand-mark {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: block;
   flex: none;
 }
 
 .brand-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .brand-sub {
-  display: block;
-  margin-top: 3px;
   color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  letter-spacing: 0.08em;
   font-weight: 400;
+  line-height: 1;
 }
 
 .top-actions {
@@ -161,15 +181,16 @@ html.is-desktop .top-nav {
 
 .net {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 1px;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
   padding-right: 12px;
   margin-right: 2px;
   border-right: 1px solid var(--line);
   color: var(--muted);
-  line-height: 1.15;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .net-now {
@@ -229,8 +250,15 @@ html:not(.is-busy) .live-dot { animation: pulse 2.8s ease-in-out infinite; }
 .stage {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.stage-main {
   position: relative;
-  overflow: visible;
+  flex: 1;
+  min-height: 248px;
 }
 
 html.is-busy .stage,
@@ -248,17 +276,21 @@ html.is-phone .stage { display: none; }
   place-items: center;
 }
 
+html.is-desktop .listen {
+  width: 248px;
+  height: 248px;
+}
+
 .stage-copy {
-  position: absolute;
-  left: 50%;
-  top: calc(50% + (var(--qr-size, 248px) / 2) + 28px);
+  position: relative;
   z-index: 2;
-  transform: translateX(-50%);
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  width: min(420px, 90%);
+  width: 100%;
+  padding: 4px 24px 20px;
 }
 
 .plate {
@@ -289,7 +321,7 @@ html.is-phone .stage { display: none; }
 
 .stage p {
   margin: 14px 0 0;
-  max-width: 22em;
+  max-width: 26em;
   color: var(--muted);
   font-size: 15px;
   font-weight: 400;
@@ -297,8 +329,58 @@ html.is-phone .stage { display: none; }
   letter-spacing: 0.06em;
 }
 
+.stage.has-join .stage-main { min-height: 200px; }
+
+.stage.has-join .listen {
+  width: min(188px, 26vh);
+  height: min(188px, 26vh);
+}
+
+html.is-desktop .stage.has-join .listen {
+  width: 188px;
+  height: 188px;
+}
+
+.join-net[hidden] { display: none; }
+
+.stage.has-join h1 { font-size: 28px; }
+
+.join-net {
+  position: relative;
+  z-index: 2;
+  margin-top: 16px;
+  width: min(440px, 92vw);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid rgba(31, 111, 235, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.join-net canvas {
+  width: 104px;
+  height: 104px;
+  flex: none;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.stage .join-net p {
+  margin: 0;
+  max-width: none;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+}
+
+.stage.has-join .address-box { margin-top: 14px; }
+
 .address-box {
-  margin-top: 28px;
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -416,6 +498,42 @@ html.is-busy .busy { display: flex; }
   min-height: 0;
   overflow: auto;
   padding: 8px 22px 16px;
+}
+
+.stage,
+.list,
+.phone {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 111, 235, 0.35) transparent;
+}
+
+.stage::-webkit-scrollbar,
+.list::-webkit-scrollbar,
+.phone::-webkit-scrollbar {
+  width: 8px;
+}
+
+.stage::-webkit-scrollbar-track,
+.list::-webkit-scrollbar-track,
+.phone::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.stage::-webkit-scrollbar-thumb,
+.list::-webkit-scrollbar-thumb,
+.phone::-webkit-scrollbar-thumb {
+  background: rgba(29, 29, 31, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.stage::-webkit-scrollbar-thumb:hover,
+.list::-webkit-scrollbar-thumb:hover,
+.phone::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 111, 235, 0.45);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .section-head {
@@ -567,7 +685,7 @@ html.is-phone #open-dir { display: none; }
 .sheet {
   position: fixed;
   z-index: 4;
-  top: calc(env(titlebar-area-height, 52px) + 10px);
+  top: calc(env(titlebar-area-height, 40px) + 8px);
   right: 22px;
   width: 320px;
   padding: 18px 18px 14px;

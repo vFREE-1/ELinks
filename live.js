@@ -47,6 +47,7 @@ async function boot() {
     qr.matrix.forEach(function (row) { LINKS.QR_MATRIX.push(row); });
     LINKS.rebuildDots();
   }
+  await showWifiJoin();
 
   const params = new URLSearchParams(location.search);
   if (params.get("phone") === "1") {
@@ -58,6 +59,79 @@ async function boot() {
   pollTransfers();
   pollTimer = setInterval(pollTransfers, 400);
 }
+
+let wifiMatrix = null;
+
+function stageCopy(hasCard) {
+  const name = info.ssid ? "「" + info.ssid + "」" : "";
+  const stage = document.querySelector(".stage");
+  if (stage) stage.classList.toggle("has-join", hasCard);
+  const card = $("join-net");
+  if (card) card.hidden = !hasCard;
+  if (hasCard) {
+    $("stage-lead").textContent = "用手机相机扫大码，就会打开选照片。";
+    $("join-net-copy").textContent = "还没连上" + name + "就扫这个码，弹出后点加入。连上后再扫上面的大码。";
+    return;
+  }
+  if (info.ssid) {
+    $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
+    return;
+  }
+  $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+}
+
+function paintWifiQr() {
+  const canvas = $("wifi-qr");
+  if (!canvas || !wifiMatrix || !wifiMatrix.length) return;
+  const css = canvas.getBoundingClientRect().width || 104;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const px = Math.max(1, Math.floor(css * dpr));
+  if (canvas.width !== px || canvas.height !== px) {
+    canvas.width = px;
+    canvas.height = px;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, css, css);
+  const n = wifiMatrix.length;
+  const cell = Math.max(1, Math.floor(css / (n + 4)));
+  const origin = Math.floor((css - cell * n) / 2);
+  ctx.fillStyle = "#000";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!wifiMatrix[r][c]) continue;
+      ctx.fillRect(origin + c * cell, origin + r * cell, cell, cell);
+    }
+  }
+}
+
+async function showWifiJoin() {
+  const local = location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.hostname === "[::1]";
+  if (!local || !info || !info.wifiJoin) {
+    stageCopy(false);
+    return;
+  }
+  try {
+    const res = await fetch("/api/qr-matrix?kind=wifi");
+    if (!res.ok) {
+      stageCopy(false);
+      return;
+    }
+    const body = await res.json();
+    if (!body.matrix || !body.matrix.length) {
+      stageCopy(false);
+      return;
+    }
+    wifiMatrix = body.matrix;
+    stageCopy(true);
+    requestAnimationFrame(paintWifiQr);
+  } catch (err) {
+    stageCopy(false);
+  }
+}
+
+window.addEventListener("resize", paintWifiQr);
 
 function persistConfig() {
   const body = {

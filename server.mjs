@@ -9,6 +9,7 @@ import { PassThrough } from "node:stream";
 import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
+import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(ROOT, "data");
@@ -108,8 +109,8 @@ function phoneUrl() {
   return `http://${lanIp()}:${PORT}/?phone=1&t=${pairToken}`;
 }
 
-function qrMatrix() {
-  const qr = QRCode.create(phoneUrl(), { errorCorrectionLevel: "M" });
+function qrMatrixFor(text) {
+  const qr = QRCode.create(text, { errorCorrectionLevel: "M" });
   const size = qr.modules.size;
   const matrix = [];
   for (let y = 0; y < size; y++) {
@@ -118,6 +119,10 @@ function qrMatrix() {
     matrix.push(row);
   }
   return matrix;
+}
+
+function qrMatrix() {
+  return qrMatrixFor(phoneUrl());
 }
 
 function inside(root, target) {
@@ -339,6 +344,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
       const cfg = loadConfig();
+      const link = await currentLink();
       sendJson(res, {
         host: `${lanIp()}:${PORT}`,
         savePath: cfg.savePath,
@@ -346,11 +352,32 @@ const server = http.createServer(async (req, res) => {
         token: pairToken,
         phoneUrl: phoneUrl(),
         lanes: LANES,
-        linkMps: Math.round(linkMps())
+        linkMps: Math.round(linkMps()),
+        ssid: link.ssid,
+        wifiJoin: link.wifiJoin
       });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/qr-matrix") {
+      const kind = url.searchParams.get("kind") || "page";
+      if (kind === "wifi") {
+        if (!isLoopbackAddress(req.socket.remoteAddress)) {
+          sendJson(res, { ok: false, error: "local only" }, 403);
+          return;
+        }
+        const link = await currentLink();
+        const text = wifiQrText();
+        if (!link.wifiJoin || !text) {
+          sendJson(res, { ok: false, error: "no wifi" }, 404);
+          return;
+        }
+        try {
+          sendJson(res, { matrix: qrMatrixFor(text) });
+        } catch {
+          sendJson(res, { ok: false, error: "no wifi" }, 404);
+        }
+        return;
+      }
       sendJson(res, { matrix: qrMatrix() });
       return;
     }
