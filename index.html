@@ -3,20 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Links 桌面接收</title>
-  <link rel="stylesheet" href="styles.css?v=ring3" />
+  <title>Links</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css?v=desk2" />
   <script>
     if (location.hash === "#busy") document.documentElement.classList.add("is-busy");
+    if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
 </head>
 <body>
   <div class="app">
     <header class="top">
       <div class="brand">
-        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-          <rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="#1f6feb" stroke-width="1.6"/>
-          <rect x="8.5" y="8.5" width="11" height="11" rx="2.5" fill="none" stroke="#1f6feb" stroke-width="1.6"/>
-        </svg>
+        <img class="brand-mark" src="assets/mark.svg" width="20" height="20" alt="" />
         <div>
           <div class="brand-name">Links</div>
           <span class="brand-sub">桌面接收</span>
@@ -34,7 +33,7 @@
 
     <section class="stage" aria-label="等待接收">
       <div class="ripples" aria-hidden="true">
-        <i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i>
       </div>
       <div class="listen stage-in">
         <div class="plate">

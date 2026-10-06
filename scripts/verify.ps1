@@ -94,6 +94,17 @@ try {
   $pkg = Get-Content -LiteralPath (Join-Path $RootFull "package.json") -Raw | ConvertFrom-Json
   if ($pkg.scripts.dev -notmatch 'electron') { throw "package.json scripts.dev must start Electron" }
   if ($pkg.main -ne "desktop/main.mjs") { throw "package.json main must be desktop/main.mjs" }
+  $main = Get-Content -LiteralPath (Join-Path $RootFull "desktop\main.mjs") -Raw
+  if ($main -notmatch 'titleBarStyle:\s*"hidden"') { throw "desktop window must hide the native caption and overlay it" }
+  $mark = Assert-InsideRepo (Join-Path $RootFull "assets\mark.svg")
+  $icon = Assert-InsideRepo (Join-Path $RootFull "assets\icon.png")
+  if (-not (Test-Path -LiteralPath $mark)) { throw "missing brand mark" }
+  if (-not (Test-Path -LiteralPath $icon)) { throw "missing window icon" }
+  $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
+  if (($index | Select-String -Pattern '<div class="ripples"' -Context 0,1) -and ($index -notmatch '<i></i><i></i><i></i><i></i><i></i><i></i>')) {
+    throw "waiting ripples should keep six rings"
+  }
+  if ($index -notmatch 'is-desktop') { throw "desktop chrome class missing" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

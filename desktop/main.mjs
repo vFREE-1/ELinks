@@ -1,7 +1,11 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, Menu, shell } from "electron";
 import { PORT, startServer } from "../server.mjs";
 
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SMOKE = process.env.LINKS_SMOKE === "1";
+const TITLEBAR = 52;
 
 let mainWindow = null;
 
@@ -14,8 +18,15 @@ function createWindow() {
     minHeight: 640,
     backgroundColor: "#ffffff",
     title: "Links",
+    icon: path.join(ROOT, "assets", "icon.png"),
     autoHideMenuBar: true,
     show: false,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#ffffff",
+      symbolColor: "#1d1d1f",
+      height: TITLEBAR
+    },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -69,7 +80,10 @@ if (!locked) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   });
-  app.whenReady().then(boot).catch((err) => {
+  app.whenReady().then(() => {
+    if (process.platform === "win32") app.setAppUserModelId("links.desktop");
+    return boot();
+  }).catch((err) => {
     console.error(err);
     app.exit(1);
   });
