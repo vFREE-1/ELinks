@@ -6,8 +6,8 @@ import { PORT, startServer } from "../server.mjs";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SMOKE = process.env.LINKS_SMOKE === "1";
 const TITLEBAR = 40;
-const DEFAULT_W = 1920;
-const DEFAULT_H = 1360;
+const DEFAULT_W = 1280;
+const DEFAULT_H = 840;
 
 let mainWindow = null;
 
