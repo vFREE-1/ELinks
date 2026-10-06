@@ -10,7 +10,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
-import { isUsbAddress, parseBlockRules, parseCategory, pickLanIp } from "./net.mjs";
+import { isUsbAddress, parseReachProbe, pickLanIp } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
 
@@ -97,23 +97,22 @@ let reachValue = { needAllow: false, publicNet: false, usb: false };
 
 function readReach() {
   const usb = usbLinked();
-  if (process.platform !== "win32") return { needAllow: false, publicNet: false, usb };
+  if (process.platform !== "win32") return { needAllow: false, publicNet: false, usb, open: true };
   try {
-    const profiles = execFileSync("powershell.exe", [
+    const probeText = execFileSync("powershell.exe", [
       "-NoProfile",
       "-Command",
-      "Get-NetConnectionProfile | ForEach-Object { $_.Name + ' ' + $_.InterfaceAlias + ' ' + $_.NetworkCategory }"
-    ], { timeout: 4000, windowsHide: true, encoding: "utf8" });
-    const publicNet = parseCategory(profiles).publicNet;
-    const blocks = execFileSync("powershell.exe", [
-      "-NoProfile",
-      "-Command",
-      "Get-NetFirewallRule -Direction Inbound -Action Block -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq 'True' -and $_.DisplayName -match 'Node.js|Electron|Elinks' } | Select-Object -First 6 DisplayName, Enabled, Action | Out-String"
-    ], { timeout: 4000, windowsHide: true, encoding: "utf8" });
-    const blocked = parseBlockRules(blocks);
-    return { needAllow: publicNet || blocked, publicNet, usb };
+      [
+        "$elinks = @(Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Elinks receiver 8730' }).Count",
+        "$appAllow = @(Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'Node.js|Electron' }).Count",
+        "$appBlock = @(Get-NetFirewallRule -Direction Inbound -Action Block -Enabled True -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'Node.js|Electron|Elinks' }).Count",
+        "Write-Output (\"ELINKS=$elinks APPALLOW=$appAllow APPBLOCK=$appBlock\")"
+      ].join("; ")
+    ], { timeout: 8000, windowsHide: true, encoding: "utf8" });
+    const probe = parseReachProbe(probeText);
+    return { needAllow: !probe.open, publicNet: !probe.open, usb, open: probe.open };
   } catch {
-    return { needAllow: true, publicNet: true, usb };
+    return { needAllow: true, publicNet: true, usb, open: false };
   }
 }
 
@@ -432,6 +431,7 @@ const server = http.createServer(async (req, res) => {
         needAllow: reach.needAllow,
         publicNet: reach.publicNet,
         usb: reach.usb,
+        open: reach.open === true,
         path: reach.usb ? "usb" : "wifi"
       });
       return;

@@ -58,6 +58,7 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'rings') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'version') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'needAllow') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'open') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'path') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
@@ -92,6 +93,8 @@ try {
   if ($info.ssid -isnot [string]) { throw "info.ssid must be a string" }
   if ($info.wifiJoin -isnot [bool]) { throw "info.wifiJoin must be a boolean" }
   if ($info.needAllow -isnot [bool]) { throw "info.needAllow must be a boolean" }
+  if ($info.open -isnot [bool]) { throw "info.open must be a boolean" }
+  if ($info.needAllow -eq $info.open) { throw "needAllow should be the opposite of open" }
   if ($info.usb -isnot [bool]) { throw "info.usb must be a boolean" }
   if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
@@ -264,7 +267,7 @@ try {
     Pop-Location
   }
 
-  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=$($info.lanes) desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin) needAllow=$($info.needAllow) usb=$($info.usb)"
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=$($info.lanes) desktop=dev linkMps=$($info.linkMps) wifiJoin=$($info.wifiJoin) needAllow=$($info.needAllow) open=$($info.open) usb=$($info.usb)"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force

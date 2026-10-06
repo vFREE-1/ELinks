@@ -1,4 +1,4 @@
-import { isUsbAddress, parseBlockRules, parseCategory, pickLanIp } from "../net.mjs";
+import { inboundOpen, isUsbAddress, parseCategory, parseReachProbe, pickLanIp } from "../net.mjs";
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -20,7 +20,11 @@ assert(pickLanIp([{ name: "WLAN", address: "192.168.1.8", family: 4, internal: f
 
 assert(parseCategory("Name WLAN Public").publicNet === true, "public");
 assert(parseCategory("Name Tailscale Public").publicNet === false, "ignore tailscale public");
-assert(parseBlockRules("DisplayName Node.js JavaScript Runtime\nEnabled True\nAction Block") === true, "node block");
-assert(parseBlockRules("DisplayName Edge\nEnabled True\nAction Block") === false, "other app");
+assert(parseReachProbe("ELINKS=1 APPALLOW=0 APPBLOCK=0").open === true, "our port rule is enough");
+assert(parseReachProbe("ELINKS=0 APPALLOW=2 APPBLOCK=0").open === true, "app allow is enough");
+assert(parseReachProbe("ELINKS=1 APPALLOW=2 APPBLOCK=2").open === false, "program block wins");
+assert(parseReachProbe("ELINKS=0 APPALLOW=0 APPBLOCK=0").open === false, "default deny");
+assert(inboundOpen({ elinks: 0, appAllow: 1, appBlock: 0 }) === true, "inboundOpen allow");
+assert(inboundOpen({ elinks: 1, appAllow: 0, appBlock: 1 }) === false, "inboundOpen block");
 
 console.log("NET_OK");

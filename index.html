@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=set5" />
+  <link rel="stylesheet" href="styles.css?v=set6" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -52,8 +52,8 @@
           <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
         </button>
         <button type="button" class="join-wifi" id="allow-lan" hidden>
-          <strong id="allow-lan-title">已经连着，但扫码打不开？</strong>
-          <span id="allow-lan-copy">点这里让电脑放行。只会弹出一次系统确认，不是连 Wi-Fi。</span>
+          <strong id="allow-lan-title">检查过了：手机现在连不进来</strong>
+          <span id="allow-lan-copy">点这里允许接入。只需确认一次，确认后会再检查一次。</span>
         </button>
         <label class="address-box">
           <span>在手机里打开或粘贴</span>
@@ -154,7 +154,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=set5"></script>
-  <script src="live.js?v=set5"></script>
+  <script src="app.js?v=set6"></script>
+  <script src="live.js?v=set6"></script>
 </body>
 </html>

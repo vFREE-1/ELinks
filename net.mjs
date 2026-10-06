@@ -40,9 +40,27 @@ export function parseCategory(text) {
   return { publicNet };
 }
 
-export function parseBlockRules(text) {
+export function parseReachProbe(text) {
   const raw = String(text || "");
-  const blocked = /True|True\s*$|启用|Enabled/i.test(raw) && /Block|阻止/i.test(raw);
-  const named = /Node\.js|Electron|Elinks/i.test(raw);
-  return Boolean(blocked && named);
+  const num = (label) => {
+    const match = raw.match(new RegExp(label + "=(\\d+)", "i"));
+    return match ? Number(match[1]) : 0;
+  };
+  const elinks = num("ELINKS");
+  const appAllow = num("APPALLOW");
+  const appBlock = num("APPBLOCK");
+  return {
+    elinks,
+    appAllow,
+    appBlock,
+    open: inboundOpen({ elinks, appAllow, appBlock })
+  };
+}
+
+export function inboundOpen(probe) {
+  const elinks = Number(probe && probe.elinks) || 0;
+  const appAllow = Number(probe && probe.appAllow) || 0;
+  const appBlock = Number(probe && probe.appBlock) || 0;
+  if (appBlock > 0) return false;
+  return elinks > 0 || appAllow > 0;
 }

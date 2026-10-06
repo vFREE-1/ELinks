@@ -65,8 +65,9 @@ async function boot() {
     setInterval(function () {
       const prevHost = info && info.host;
       const prevUsb = info && info.usb;
+      const prevAllow = info && info.needAllow;
       refreshLink().then(function () {
-        if (info && (info.host !== prevHost || info.usb !== prevUsb)) showPageQr();
+        if (info && (info.host !== prevHost || info.usb !== prevUsb || info.needAllow !== prevAllow)) showPageQr();
       }).catch(function () {});
     }, 2500);
   }
@@ -118,12 +119,12 @@ function showAllowLan() {
     return;
   }
   card.hidden = false;
-  $("allow-lan-title").textContent = "已经连着，但扫码打不开？";
+  $("allow-lan-title").textContent = "检查过了：手机现在连不进来";
   if (info.usb) {
-    $("allow-lan-copy").textContent = "点这里让电脑放行数据线。只会弹出一次系统确认，不是连 Wi-Fi。";
+    $("allow-lan-copy").textContent = "点这里允许接入。只需确认一次，确认后会再检查一次。";
     return;
   }
-  $("allow-lan-copy").textContent = "点这里让电脑放行。只会弹出一次系统确认，不是连 Wi-Fi。";
+  $("allow-lan-copy").textContent = "点这里允许接入。只需确认一次，确认后会再检查一次。";
 }
 
 function showWifiQr() {
