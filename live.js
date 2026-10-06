@@ -1,7 +1,6 @@
 const LIVE = location.protocol === "http:" || location.protocol === "https:";
 const LINKS = window.Links;
 let MAX_CONN = 4;
-const SLICE = 4 * 1024 * 1024;
 
 let info = null;
 let sessionId = "";
@@ -52,25 +51,21 @@ async function boot() {
 
   const params = new URLSearchParams(location.search);
   if (params.get("phone") === "1") {
-    if (params.get("t")) info.token = params.get("t");
-    if (params.get("p")) $("join-password").value = params.get("p");
-    LINKS.showPhone();
-    pair(Boolean(params.get("p")));
+    location.replace("/phone.html" + location.search);
+    return;
   }
 
   pollTransfers();
   pollTimer = setInterval(pollTransfers, 400);
-  if (params.get("phone") !== "1") {
-    checkForUpdate(false);
-    setInterval(function () {
-      const prevHost = info && info.host;
-      const prevUsb = info && info.usb;
-      const prevAllow = info && info.needAllow;
-      refreshLink().then(function () {
-        if (info && (info.host !== prevHost || info.usb !== prevUsb || info.needAllow !== prevAllow)) showPageQr();
-      }).catch(function () {});
-    }, 2500);
-  }
+  checkForUpdate(false);
+  setInterval(function () {
+    const prevHost = info && info.host;
+    const prevUsb = info && info.usb;
+    const prevAllow = info && info.needAllow;
+    refreshLink().then(function () {
+      if (info && (info.host !== prevHost || info.usb !== prevUsb || info.needAllow !== prevAllow)) showPageQr();
+    }).catch(function () {});
+  }, 2500);
 }
 
 let pageMatrix = null;
@@ -389,54 +384,10 @@ $("file-input").addEventListener("change", function () {
   $("file-input").value = "";
   if (!files.length || !sessionId) return;
   LINKS.setMode(true);
-  files.forEach(function (file) { uploadFile(file); });
+  import("./send.mjs").then(function (mod) {
+    return mod.sendFiles(files, { session: sessionId, lanes: MAX_CONN });
+  });
 });
-
-let inflight = 0;
-const waiting = [];
-
-function withConn(fn) {
-  return new Promise(function (resolve, reject) {
-    function run() {
-      inflight += 1;
-      Promise.resolve()
-        .then(fn)
-        .then(resolve, reject)
-        .then(function () {
-          inflight -= 1;
-          const next = waiting.shift();
-          if (next) next();
-        });
-    }
-    if (inflight < MAX_CONN) run();
-    else waiting.push(run);
-  });
-}
-
-function uploadFile(file) {
-  const size = file.size;
-  const jobs = [];
-  for (let start = 0; start < size; start += SLICE) {
-    const end = Math.min(size, start + SLICE);
-    jobs.push(withConn(function () { return putSlice(file, start, end, size); }));
-  }
-  return Promise.all(jobs);
-}
-
-function putSlice(file, start, end, size) {
-  const blob = file.slice(start, end);
-  const query = new URLSearchParams({
-    session: sessionId,
-    name: file.name,
-    size: String(size),
-    offset: String(start)
-  });
-  return fetch("/api/upload?" + query.toString(), {
-    method: "PUT",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: blob
-  });
-}
 
 const icon = {
   video: '<svg class="glyph" viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="3" width="14" height="10" rx="1.4" fill="none" stroke="#1f6feb" stroke-width="1.2"/><path d="M6.2 5.6v4.8L11 8z" fill="#1f6feb"/></svg>',

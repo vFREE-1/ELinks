@@ -1,0 +1,155 @@
+import { sendFiles } from "./send.mjs";
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function get(name) {
+  return new URLSearchParams(location.search).get(name);
+}
+
+function formatSize(bytes) {
+  if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + " GB";
+  if (bytes >= 1024 ** 2) return Math.max(1, Math.round(bytes / 1024 ** 2)) + " MB";
+  return bytes + " B";
+}
+
+let info = null;
+let sessionId = "";
+let lanes = 4;
+let sending = false;
+let paintTimer = 0;
+
+function setStatus(text) {
+  $("phone-status").textContent = text;
+}
+
+async function pair(fromForm) {
+  const payload = { token: info.token };
+  const fromQuery = get("p");
+  if (fromForm) payload.password = $("join-password").value || fromQuery || "";
+  else if (fromQuery) payload.password = fromQuery;
+  const res = await fetch("/api/pair", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  $("password-error").hidden = true;
+  if (data.needPassword) {
+    $("join-pass").hidden = false;
+    $("pick").hidden = true;
+    $("join-password").focus();
+    setStatus("这台电脑设了接收密码。");
+    return false;
+  }
+  if (!data.ok) {
+    $("join-pass").hidden = false;
+    $("pick").hidden = true;
+    $("password-error").hidden = false;
+    return false;
+  }
+  sessionId = data.session;
+  $("join-pass").hidden = true;
+  $("pick").hidden = false;
+  setStatus("选好就传到这台电脑，不用再改地址。");
+  return true;
+}
+
+function paint(items) {
+  const box = $("send-list");
+  box.innerHTML = "";
+  let sent = 0;
+  let total = 0;
+  let live = 0;
+  items.forEach(function (item) {
+    sent += item.sent || 0;
+    total += item.size || 0;
+    if (!item.done) live += 1;
+    const ratio = item.size ? item.sent / item.size : 0;
+    const row = document.createElement("article");
+    row.className = "phone-row";
+    row.innerHTML = "<b></b><span></span><div class=\"line\"><i></i></div>";
+    row.querySelector("b").textContent = item.name;
+    row.querySelector("span").textContent = item.error
+      ? "没传上，请再选一次"
+      : (item.done ? "已传到电脑" : formatSize(item.sent) + " / " + formatSize(item.size));
+    row.querySelector("i").style.width = (Math.min(1, ratio) * 100).toFixed(1) + "%";
+    box.appendChild(row);
+  });
+  const pct = total ? Math.round((sent / total) * 100) : 0;
+  $("send-lead").textContent = live ? ("正在上传 " + pct + "%") : "已经传到电脑";
+}
+
+function queueFiles(list) {
+  const raw = Array.prototype.slice.call(list || []);
+  const files = raw.filter(function (file) {
+    return file && file.size > 0;
+  });
+  if (!raw.length || !sessionId) return;
+  if (!files.length) {
+    setStatus("还没读到这些照片，请再选一次，或等 iCloud 下完。");
+    return;
+  }
+  if (sending) {
+    setStatus("这一批还在传，传完再选。");
+    return;
+  }
+  sending = true;
+  $("pick").hidden = true;
+  $("send").hidden = false;
+  setStatus("已经开始传，不用等相册先读完。");
+  sendFiles(files, {
+    session: sessionId,
+    lanes: lanes,
+    onProgress: function (items) {
+      if (paintTimer) return;
+      paintTimer = requestAnimationFrame(function () {
+        paintTimer = 0;
+        paint(items);
+      });
+    }
+  }).then(function (items) {
+    sending = false;
+    paint(items);
+    setStatus(items.some(function (item) { return item.error; }) ? "有的没传上，可以再选一次。" : "可以继续选。");
+  }).catch(function () {
+    sending = false;
+    setStatus("这次没传上，请再选一次。");
+  });
+}
+
+$("join-pass").addEventListener("submit", function (event) {
+  event.preventDefault();
+  pair(true);
+});
+
+$("file-input").addEventListener("change", function () {
+  const files = $("file-input").files;
+  $("file-input").value = "";
+  queueFiles(files);
+});
+
+$("file-more").addEventListener("change", function () {
+  const files = $("file-more").files;
+  $("file-more").value = "";
+  queueFiles(files);
+});
+
+async function boot() {
+  info = await fetch("/api/info").then(function (res) { return res.json(); });
+  lanes = info.lanes || 4;
+  if (get("t")) info.token = get("t");
+  if (get("p")) $("join-password").value = get("p");
+  if (!info.token) {
+    $("pick").hidden = true;
+    setStatus("请用电脑上的码扫进来。");
+    return;
+  }
+  await pair(Boolean(get("p")));
+}
+
+boot().catch(function () {
+  setStatus("连不上这台电脑，请回到电脑重新扫码。");
+  $("pick").hidden = true;
+});

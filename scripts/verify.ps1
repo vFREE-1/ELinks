@@ -60,6 +60,7 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'needAllow') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'open') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'path') { $needStart = $true }
+  if ($peek.phoneUrl -notmatch 'phone.html') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -88,6 +89,7 @@ try {
   if (-not $info.token) { throw "info.token missing" }
   if ($null -eq $info.linkMps) { throw "info.linkMps missing" }
   if ($info.phoneUrl -notmatch 'phone=1') { throw "phoneUrl must be an explicit GET link" }
+  if ($info.phoneUrl -notmatch '/phone.html') { throw "phoneUrl must open the dedicated phone page" }
   if ($info.PSObject.Properties.Name -notcontains 'rings') { throw "info.rings missing" }
   if (-not $info.version) { throw "info.version missing" }
   if ($info.ssid -isnot [string]) { throw "info.ssid must be a string" }
@@ -124,6 +126,9 @@ try {
   node (Join-Path $RootFull "scripts\verify-wifi.mjs")
   if ($LASTEXITCODE -ne 0) { throw "wifi verify failed" }
 
+  node (Join-Path $RootFull "scripts\verify-phone.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "phone verify failed" }
+
   node (Join-Path $RootFull "scripts\verify-update.mjs")
   if ($LASTEXITCODE -ne 0) { throw "update verify failed" }
   $updSrc = Get-Content -LiteralPath (Join-Path $RootFull "update.mjs") -Raw
@@ -142,6 +147,28 @@ try {
   if ($page.Content -notmatch 'id="join-wifi"') { throw "served page is missing the wifi join control" }
   if ($page.Content -notmatch 'join-wifi-title') { throw "served page still has the old wifi hint" }
   if ($page.Content -notmatch 'path-mark') { throw "served page is missing the folder icon" }
+
+  $phonePage = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing
+  if ($phonePage.Headers["Cache-Control"] -ne "no-store") { throw "phone page must not be cached" }
+  if ($phonePage.Content -notmatch 'id="file-input"') { throw "phone page must expose the file input" }
+  if ($phonePage.Content -notmatch 'pick-entry') { throw "phone page must use a dedicated upload entry" }
+  if ($phonePage.Content -notmatch 'id="file-more"') { throw "phone page must keep a second pick entry after sending" }
+  if ($phonePage.Content -match 'id="qr"') { throw "phone page must not include the waiting qr" }
+  if ($phonePage.Content -match 'id="allow-lan"') { throw "phone page must not include allow-lan" }
+  if ($phonePage.Content -match 'id="join-wifi"') { throw "phone page must not include wifi join" }
+  if ($phonePage.Content -match 'id="desk-host"') { throw "phone page must not include the desktop address field" }
+  if ($phonePage.Content -match 'id="host"') { throw "phone page should not ask for a host" }
+  $sendMod = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing
+  if ($sendMod.StatusCode -ne 200) { throw "send.mjs must be reachable from the phone page" }
+  if ($sendMod.Content -notmatch 'XMLHttpRequest') { throw "phone upload must use XHR so progress can move while sending" }
+  if ($sendMod.Content -notmatch 'upload.onprogress') { throw "phone upload must listen to upload progress" }
+  $blockedMjs = $false
+  try {
+    Invoke-WebRequest -Uri "http://127.0.0.1:8730/server.mjs" -UseBasicParsing | Out-Null
+  } catch {
+    $blockedMjs = $true
+  }
+  if (-not $blockedMjs) { throw "server.mjs must not be served to the phone" }
 
   $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
   if ($index -notmatch 'Elinks') { throw "brand should be Elinks" }
@@ -259,9 +286,19 @@ try {
   if ($index -notmatch '<div class="app">[\s\S]{0,160}<div class="ripples"') { throw "waiting rings must sit behind the whole window" }
   if ($css -notmatch '\.switch\.on') { throw "animation switch style missing" }
   if ($css -notmatch 'rings-off') { throw "animation off class missing" }
+  if ($css -notmatch 'html.phone-page') { throw "phone page must override the desktop overflow clip" }
+  if ($css -notmatch '\.pick-entry') { throw "phone upload entry style missing" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'open-dir\?path=') { throw "open-dir must send the current save path" }
-  if ($live -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
+  if ($live -notmatch 'phone.html') { throw "scanned phone=1 links must open the phone page" }
+  $phoneJs = Get-Content -LiteralPath (Join-Path $RootFull "phone.js") -Raw
+  if ($phoneJs -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
+  if ($phoneJs -notmatch 'sendFiles') { throw "phone page must send through the shared uploader" }
+  $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw
+  if ($sliceSrc -notmatch '512 \* 1024') { throw "iphone slices must stay small so the first bytes leave sooner" }
+  if ($mainSrv -match 'write\(Buffer.alloc\(1\)') { throw "part file must not punch a byte at EOF" }
+  if ($mainSrv -notmatch 'created.truncate\(size\)') { throw "part file should truncate to size" }
+  if ($mainSrv -notmatch 'item.received = Math.min\(size, item.received \+ n\)') { throw "received must move as bytes arrive" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

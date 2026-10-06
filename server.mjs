@@ -21,7 +21,8 @@ const CONFIG_PATH = path.join(DATA, "config.json");
 const DEFAULT_SAVE = path.join(ROOT, "received");
 const execFileAsync = promisify(execFile);
 const PORT = 8730;
-const STATIC_EXT = new Set([".html", ".css", ".js", ".svg", ".png", ".ico"]);
+const STATIC_EXT = new Set([".html", ".css", ".js", ".mjs", ".svg", ".png", ".ico"]);
+const CLIENT_MJS = new Set(["slice.mjs", "send.mjs"]);
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
 const sessions = new Map();
@@ -207,7 +208,7 @@ function phoneUrl() {
   const query = new URLSearchParams({ phone: "1", t: pairToken });
   const pass = String(cfg.password || "").trim();
   if (pass) query.set("p", pass);
-  return `http://${lanIp()}:${PORT}/?${query.toString()}`;
+  return `http://${lanIp()}:${PORT}/phone.html?${query.toString()}`;
 }
 
 function qrMatrixFor(text) {
@@ -276,7 +277,7 @@ async function ensurePart(item, size) {
     if (!fs.existsSync(item.part)) {
       const created = await fsp.open(item.part, "w");
       try {
-        if (size > 0) await created.write(Buffer.alloc(1), 0, 1, size - 1);
+        if (size > 0) await created.truncate(size);
       } finally {
         await created.close();
       }
@@ -285,16 +286,26 @@ async function ensurePart(item, size) {
   });
 }
 
-async function writeRange(req, filePath, offset) {
+function bumpSpeed(item, n) {
+  const nowMs = Date.now();
+  if (!item.window) item.window = [];
+  item.window.push({ t: nowMs, n });
+  item.window = item.window.filter((tick) => nowMs - tick.t < 1000);
+  const span = Math.max(0.2, (nowMs - item.window[0].t) / 1000);
+  item.speed = item.window.reduce((sum, tick) => sum + tick.n, 0) / span;
+}
+
+async function writeRange(req, filePath, offset, onBytes) {
   let written = 0;
-  const tap = new PassThrough();
+  const tap = new PassThrough({ highWaterMark: 64 * 1024 });
   tap.on("data", (chunk) => {
     written += chunk.length;
+    if (onBytes) onBytes(chunk.length);
   });
   await pipeline(req, tap, fs.createWriteStream(filePath, {
     flags: "r+",
     start: offset,
-    highWaterMark: 1024 * 1024
+    highWaterMark: 64 * 1024
   }));
   return written;
 }
@@ -330,10 +341,15 @@ async function serveStatic(res, urlPath) {
     sendJson(res, { error: "not found" }, 404);
     return;
   }
+  if (ext === ".mjs" && !CLIENT_MJS.has(path.basename(target))) {
+    sendJson(res, { error: "not found" }, 404);
+    return;
+  }
   const types = {
     ".html": "text/html; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".ico": "image/x-icon"
@@ -408,8 +424,12 @@ async function handleUpload(req, res, url) {
   stats.inflight += 1;
   if (stats.inflight > stats.maxInflight) stats.maxInflight = stats.inflight;
   try {
-    if (size > 0) written = await writeRange(req, item.part, offset);
-    else {
+    if (size > 0) {
+      written = await writeRange(req, item.part, offset, (n) => {
+        item.received = Math.min(size, item.received + n);
+        bumpSpeed(item, n);
+      });
+    } else {
       req.resume();
       await new Promise((resolve) => req.on("end", resolve));
     }
@@ -418,13 +438,8 @@ async function handleUpload(req, res, url) {
   }
   stats.bytes += written;
   await withLock(`${item.id}:meta`, async () => {
-    item.received = Math.min(size || written, item.received + written);
-    const nowMs = Date.now();
-    if (!item.window) item.window = [];
-    item.window.push({ t: nowMs, n: written });
-    item.window = item.window.filter((tick) => nowMs - tick.t < 1000);
-    const span = Math.max(0.2, (nowMs - (item.window[0] ? item.window[0].t : nowMs)) / 1000);
-    item.speed = item.window.reduce((sum, tick) => sum + tick.n, 0) / span;
+    if (size > 0) item.received = Math.min(size, item.received);
+    else item.received += written;
     const complete = (size > 0 && item.received >= size) || (size === 0 && !item.finalized);
     if (complete && !item.finalized) {
       item.finalized = true;
@@ -585,6 +600,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "PUT" && url.pathname === "/api/upload") {
       await handleUpload(req, res, url);
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/" && url.searchParams.get("phone") === "1") {
+      res.writeHead(302, {
+        Location: "/phone.html?" + url.searchParams.toString(),
+        "Cache-Control": "no-store"
+      });
+      res.end();
       return;
     }
     if (req.method === "GET") {

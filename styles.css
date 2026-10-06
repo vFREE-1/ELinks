@@ -901,3 +901,145 @@ button.fill:hover { background: #154ea8; }
 @media (prefers-reduced-motion: reduce) {
   .live-dot, .stage-in { animation: none; }
 }
+
+html.phone-page,
+html.phone-page body {
+  overflow: auto;
+  height: auto;
+  min-height: 100%;
+  background: #fff;
+}
+
+.phone-app {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 22px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+
+.phone-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.phone-status {
+  margin: 18px 0 28px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: 0.04em;
+}
+
+.phone-pass { margin-bottom: 22px; }
+
+.phone-pass label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: var(--tracking-ui);
+}
+
+.phone-pass input {
+  width: 100%;
+  height: 44px;
+  margin-bottom: 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(31, 111, 235, 0.35);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.phone-pass .fill { width: 100%; }
+
+.pick-entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  border-radius: 980px;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.pick-entry strong {
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+
+.pick-entry input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.pick-more {
+  margin-top: 22px;
+  background: transparent;
+  color: var(--blue);
+  border: 1px solid rgba(31, 111, 235, 0.35);
+}
+
+.phone-send { margin-top: 4px; }
+
+.phone-send #send-lead {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-title);
+}
+
+.phone-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-row b {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-row span {
+  display: block;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-row .line {
+  display: block;
+  grid-column: auto;
+  grid-row: auto;
+  height: 3px;
+  background: var(--track);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.phone-row .line i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--blue);
+}
