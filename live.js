@@ -43,11 +43,10 @@ async function boot() {
 
   const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
   if (qr.matrix && qr.matrix.length) {
-    LINKS.QR_MATRIX.length = 0;
-    qr.matrix.forEach(function (row) { LINKS.QR_MATRIX.push(row); });
-    LINKS.rebuildDots();
+    pageMatrix = qr.matrix;
+    applyMatrix(pageMatrix);
   }
-  await showWifiJoin();
+  await loadWifiJoin();
 
   const params = new URLSearchParams(location.search);
   if (params.get("phone") === "1") {
@@ -60,78 +59,68 @@ async function boot() {
   pollTimer = setInterval(pollTransfers, 400);
 }
 
+let pageMatrix = null;
 let wifiMatrix = null;
+let qrMode = "page";
 
-function stageCopy(hasCard) {
-  const name = info.ssid ? "「" + info.ssid + "」" : "";
-  const stage = document.querySelector(".stage");
-  if (stage) stage.classList.toggle("has-join", hasCard);
-  const card = $("join-net");
-  if (card) card.hidden = !hasCard;
-  if (hasCard) {
-    $("stage-lead").textContent = "用手机相机扫大码，就会打开选照片。";
-    $("join-net-copy").textContent = "还没连上" + name + "就扫这个码，弹出后点加入。连上后再扫上面的大码。";
-    return;
-  }
-  if (info.ssid) {
-    $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
-    return;
-  }
-  $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+function applyMatrix(matrix) {
+  LINKS.QR_MATRIX.length = 0;
+  matrix.forEach(function (row) { LINKS.QR_MATRIX.push(row.slice()); });
+  LINKS.rebuildDots();
 }
 
-function paintWifiQr() {
-  const canvas = $("wifi-qr");
-  if (!canvas || !wifiMatrix || !wifiMatrix.length) return;
-  const css = canvas.getBoundingClientRect().width || 104;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const px = Math.max(1, Math.floor(css * dpr));
-  if (canvas.width !== px || canvas.height !== px) {
-    canvas.width = px;
-    canvas.height = px;
-  }
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, css, css);
-  const n = wifiMatrix.length;
-  const cell = Math.max(1, Math.floor(css / (n + 4)));
-  const origin = Math.floor((css - cell * n) / 2);
-  ctx.fillStyle = "#000";
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
-      if (!wifiMatrix[r][c]) continue;
-      ctx.fillRect(origin + c * cell, origin + r * cell, cell, cell);
-    }
-  }
+function networkName() {
+  return info && info.ssid ? "「" + info.ssid + "」" : "";
 }
 
-async function showWifiJoin() {
+function showPageQr() {
+  qrMode = "page";
+  if (pageMatrix) applyMatrix(pageMatrix);
+  $("qr").setAttribute("aria-label", "接收页二维码，手机扫码后选择照片或视频");
+  $("stage-title").textContent = "等待接收";
+  const name = networkName();
+  if (wifiMatrix) {
+    $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。";
+    $("join-wifi").hidden = false;
+    $("join-wifi").textContent = "还没连上" + name + "？";
+    return;
+  }
+  $("join-wifi").hidden = true;
+  if (name) $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要连着 Wi-Fi" + name + "。";
+  else $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。";
+}
+
+function showWifiQr() {
+  if (!wifiMatrix) return;
+  qrMode = "wifi";
+  applyMatrix(wifiMatrix);
+  $("qr").setAttribute("aria-label", "加入这台电脑所在 Wi-Fi 的二维码");
+  $("stage-title").textContent = "加入 Wi-Fi";
+  $("stage-lead").textContent = "用相机扫这个码，弹出后点加入" + networkName() + "。连上后点下面，再扫接收码。";
+  $("join-wifi").hidden = false;
+  $("join-wifi").textContent = "已连上，显示接收码";
+}
+
+async function loadWifiJoin() {
   const local = location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.hostname === "[::1]";
   if (!local || !info || !info.wifiJoin) {
-    stageCopy(false);
+    showPageQr();
     return;
   }
   try {
     const res = await fetch("/api/qr-matrix?kind=wifi");
-    if (!res.ok) {
-      stageCopy(false);
-      return;
-    }
-    const body = await res.json();
-    if (!body.matrix || !body.matrix.length) {
-      stageCopy(false);
-      return;
-    }
-    wifiMatrix = body.matrix;
-    stageCopy(true);
-    requestAnimationFrame(paintWifiQr);
+    const body = res.ok ? await res.json() : null;
+    wifiMatrix = body && body.matrix && body.matrix.length ? body.matrix : null;
   } catch (err) {
-    stageCopy(false);
+    wifiMatrix = null;
   }
+  showPageQr();
 }
 
-window.addEventListener("resize", paintWifiQr);
+$("join-wifi").addEventListener("click", function () {
+  if (qrMode === "wifi") showPageQr();
+  else showWifiQr();
+});
 
 function persistConfig() {
   const body = {

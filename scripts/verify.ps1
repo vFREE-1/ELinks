@@ -143,8 +143,8 @@ try {
   }
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
   if ($index -notmatch 'stage-copy') { throw "QR caption should sit under a centered code" }
-  if ($index -notmatch 'id="join-net"') { throw "wifi join card missing" }
-  if ($index -notmatch 'id="wifi-qr"') { throw "wifi join qr missing" }
+  if ($index -notmatch 'id="join-wifi"') { throw "wifi join control missing" }
+  if ($index -match 'id="join-net"|id="wifi-qr"') { throw "waiting screen should keep a single qr" }
   if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub">桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }

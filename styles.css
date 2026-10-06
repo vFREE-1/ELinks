@@ -329,58 +329,16 @@ html.is-desktop .listen {
   letter-spacing: 0.06em;
 }
 
-.stage.has-join .stage-main { min-height: 200px; }
-
-.stage.has-join .listen {
-  width: min(188px, 26vh);
-  height: min(188px, 26vh);
-}
-
-html.is-desktop .stage.has-join .listen {
-  width: 188px;
-  height: 188px;
-}
-
-.join-net[hidden] { display: none; }
-
-.stage.has-join h1 { font-size: 28px; }
-
-.join-net {
-  position: relative;
-  z-index: 2;
-  margin-top: 16px;
-  width: min(440px, 92vw);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-align: left;
-  padding: 10px 14px 10px 10px;
-  border: 1px solid rgba(31, 111, 235, 0.22);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
-}
-
-.join-net canvas {
-  width: 104px;
-  height: 104px;
-  flex: none;
-  background: #fff;
-  border-radius: 8px;
-}
-
-.stage .join-net p {
-  margin: 0;
-  max-width: none;
-  text-align: left;
-  font-size: 13px;
-  line-height: 1.6;
+.stage .join-wifi {
+  margin-top: 10px;
+  font-size: 14px;
   letter-spacing: 0.04em;
 }
 
-.stage.has-join .address-box { margin-top: 14px; }
+.stage .join-wifi[hidden] { display: none; }
 
 .address-box {
-  margin-top: 16px;
+  margin-top: 22px;
   display: flex;
   flex-direction: column;
   align-items: stretch;

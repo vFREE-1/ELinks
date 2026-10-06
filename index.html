@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=fit3" />
+  <link rel="stylesheet" href="styles.css?v=fit4" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -47,10 +47,7 @@
       <div class="stage-copy">
         <h1 id="stage-title">等待接收</h1>
         <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
-        <div class="join-net" id="join-net" hidden>
-          <canvas id="wifi-qr" width="104" height="104" aria-label="加入这台电脑所在 Wi-Fi 的二维码"></canvas>
-          <p id="join-net-copy">还没连上这个 Wi-Fi 就扫这个码，弹出后点加入。连上后再扫上面的大码。</p>
-        </div>
+        <button type="button" class="text join-wifi" id="join-wifi" hidden>还没连上这个 Wi-Fi？</button>
         <label class="address-box">
           <span>在手机里输入</span>
           <span class="address-field">
@@ -131,7 +128,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=fit3"></script>
-  <script src="live.js?v=fit3"></script>
+  <script src="app.js?v=fit4"></script>
+  <script src="live.js?v=fit4"></script>
 </body>
 </html>
