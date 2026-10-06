@@ -238,7 +238,11 @@ async function serveStatic(res, urlPath) {
     ".ico": "image/x-icon"
   };
   const data = fs.readFileSync(target);
-  res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream", "Content-Length": data.length });
+  res.writeHead(200, {
+    "Content-Type": types[ext] || "application/octet-stream",
+    "Content-Length": data.length,
+    "Cache-Control": "no-store"
+  });
   res.end(data);
 }
 

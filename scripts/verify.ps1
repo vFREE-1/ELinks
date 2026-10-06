@@ -55,6 +55,8 @@ $needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
+  $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
+  if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
   $needStart = $true
 }
@@ -98,6 +100,11 @@ try {
 
   node (Join-Path $RootFull "scripts\verify-wifi.mjs")
   if ($LASTEXITCODE -ne 0) { throw "wifi verify failed" }
+
+  $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing
+  if ($page.Headers["Cache-Control"] -ne "no-store") { throw "waiting page must not be cached" }
+  if ($page.Content -match 'id="join-net"|id="wifi-qr"') { throw "served page still has a second qr" }
+  if ($page.Content -notmatch 'id="join-wifi"') { throw "served page is missing the wifi join control" }
 
   $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
   if ($index -notmatch 'Elinks') { throw "brand should be Elinks" }
