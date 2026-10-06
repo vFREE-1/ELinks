@@ -2,11 +2,19 @@
   "name": "links",
   "private": true,
   "type": "module",
+  "main": "desktop/main.mjs",
   "scripts": {
+    "dev": "electron .",
     "start": "node server.mjs",
     "verify": "powershell -NoProfile -File scripts/verify.ps1"
   },
   "dependencies": {
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0"
+  },
+  "allowScripts": {
+    "electron@38.8.6": true
   }
 }

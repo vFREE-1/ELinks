@@ -91,7 +91,22 @@ try {
   node (Join-Path $RootFull "scripts\verify-parallel.mjs")
   if ($LASTEXITCODE -ne 0) { throw "parallel verify failed" }
 
-  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6"
+  $pkg = Get-Content -LiteralPath (Join-Path $RootFull "package.json") -Raw | ConvertFrom-Json
+  if ($pkg.scripts.dev -notmatch 'electron') { throw "package.json scripts.dev must start Electron" }
+  if ($pkg.main -ne "desktop/main.mjs") { throw "package.json main must be desktop/main.mjs" }
+  $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
+  if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
+  Push-Location $RootFull
+  try {
+    $env:LINKS_SMOKE = "1"
+    & $electron "."
+    if ($LASTEXITCODE -ne 0) { throw "desktop smoke failed" }
+  } finally {
+    Remove-Item Env:LINKS_SMOKE -ErrorAction SilentlyContinue
+    Pop-Location
+  }
+
+  Write-Output "VERIFY_OK host=$($info.host) file=$name parallel=6 desktop=dev"
 } finally {
   if ($started -and $proc -and -not $proc.HasExited) {
     Stop-Process -Id $proc.Id -Force

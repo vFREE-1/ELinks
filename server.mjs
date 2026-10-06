@@ -384,9 +384,34 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-loadConfig();
-server.maxConnections = 128;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Links receiver http://${lanIp()}:${PORT}`);
-  console.log(`Save path ${saveRoot()}`);
-});
+export { PORT, lanIp, server };
+
+export function startServer() {
+  loadConfig();
+  server.maxConnections = 128;
+  if (server.listening) return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
+  return new Promise((resolve, reject) => {
+    const onError = (err) => {
+      server.off("listening", onListen);
+      if (err && err.code === "EADDRINUSE") {
+        resolve({ port: PORT, host: lanIp(), reused: true });
+        return;
+      }
+      reject(err);
+    };
+    const onListen = () => {
+      server.off("error", onError);
+      console.log(`Links receiver http://${lanIp()}:${PORT}`);
+      console.log(`Save path ${saveRoot()}`);
+      resolve({ port: PORT, host: lanIp(), reused: false });
+    };
+    server.once("error", onError);
+    server.once("listening", onListen);
+    server.listen(PORT, "0.0.0.0");
+  });
+}
+
+const launched = process.argv[1]
+  ? path.resolve(fileURLToPath(import.meta.url)).toLowerCase() === path.resolve(process.argv[1]).toLowerCase()
+  : false;
+if (launched) startServer();
