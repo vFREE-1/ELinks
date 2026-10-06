@@ -140,6 +140,8 @@ try {
   if ($main -notmatch 'titleBarStyle:\s*"hidden"') { throw "desktop window must hide the native caption and overlay it" }
   if ($main -notmatch 'TITLEBAR = 40') { throw "title overlay should stay one toolbar row" }
   if ($main -notmatch 'function fitWindow') { throw "desktop window must fit waiting copy" }
+  if ($main -notmatch 'DEFAULT_W = 1920') { throw "default window width should be 1920" }
+  if ($main -notmatch 'DEFAULT_H = 1360') { throw "default window height should be 1360" }
   $mark = Assert-InsideRepo (Join-Path $RootFull "assets\mark.svg")
   $icon = Assert-InsideRepo (Join-Path $RootFull "assets\icon.png")
   if (-not (Test-Path -LiteralPath $mark)) { throw "missing brand mark" }
@@ -163,6 +165,7 @@ try {
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }
   if ($css -notmatch '\.brand \{[\s\S]{0,180}white-space:\s*nowrap') { throw "toolbar brand must stay on one row" }
   if ($css -match '\.ripples i \{[\s\S]{0,500}animation:\s*none') { throw "ripple rings must keep moving" }
+  if ($css -notmatch 'ring-out 8\.8s') { throw "waiting rings should run at half speed" }
   if ($css -notmatch '--sky') { throw "sky blue token missing" }
   if ($css -notmatch 'scale\(var\(--ring-scale') { throw "waiting rings must reach the window edges" }
   if ($css -match 'scale\(3\.5\)') { throw "waiting rings still stop short of the window" }

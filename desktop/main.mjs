@@ -6,6 +6,8 @@ import { PORT, startServer } from "../server.mjs";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SMOKE = process.env.LINKS_SMOKE === "1";
 const TITLEBAR = 40;
+const DEFAULT_W = 1920;
+const DEFAULT_H = 1360;
 
 let mainWindow = null;
 
@@ -13,8 +15,8 @@ function createWindow() {
   Menu.setApplicationMenu(null);
   const work = screen.getPrimaryDisplay().workAreaSize;
   const win = new BrowserWindow({
-    width: Math.min(960, work.width - 48),
-    height: Math.min(680, work.height - 48),
+    width: Math.min(DEFAULT_W, work.width - 48),
+    height: Math.min(DEFAULT_H, work.height - 48),
     minWidth: 800,
     minHeight: 500,
     backgroundColor: "#ffffff",
@@ -70,12 +72,13 @@ async function fitWindow(win, opts = {}) {
   const work = screen.getPrimaryDisplay().workAreaSize;
   const first = await measureCopy(win);
   const current = win.getContentSize();
-  const width = Math.min(960, Math.max(880, Math.min(current[0], work.width - 48)));
+  const width = Math.min(DEFAULT_W, Math.max(current[0], 880), work.width - 48);
   const maxH = Math.max(500, work.height - 24);
-  let height = Math.min(Math.max(first.need + (first.extra > 1 ? first.extra : 0), 520), maxH);
+  const floorH = Math.min(DEFAULT_H, maxH);
+  let height = Math.min(Math.max(first.need + (first.extra > 1 ? first.extra : 0), floorH, current[1]), maxH);
   if (opts.growOnly) {
     if (first.extra <= 1 && first.need <= current[1]) return;
-    height = Math.min(Math.max(current[1], first.need, current[1] + first.extra), maxH);
+    height = Math.min(Math.max(current[1], first.need, current[1] + first.extra, floorH), maxH);
   }
   win.setMinimumSize(800, 500);
   win.setContentSize(width, height);
