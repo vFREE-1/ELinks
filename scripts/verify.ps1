@@ -382,6 +382,7 @@ try {
   if ($mainSrv -notmatch 'function rememberHost' -or $mainSrv -notmatch 'function historyHosts') { throw "receiver must keep past hosts after a drop" }
   if ($mainSrv -notmatch '/api/host-forget' -or $mainSrv -notmatch 'function forgetHost') { throw "past hosts must be removable from the receive page" }
   if ($index -notmatch 'id="peer-modal-forget"') { throw "history host modal must offer 移除" }
+  if ($index -notmatch 'class="modal-actions"') { throw "peer modal actions must sit on one row" }
   if ($live -notmatch 'function forgetBond') { throw "remove must take a past host off the receive page" }
   if ($live -notmatch 'data.history') { throw "receive page must render past hosts" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
@@ -416,6 +417,7 @@ try {
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
   if ($css -notmatch '\.modal-facts \{[\s\S]{0,180}grid-template-columns:\s*1fr 1fr') { throw "peer facts should sit two-up" }
+  if ($css -notmatch '\.modal-actions') { throw "peer modal 移除 and 取消 must sit on one row" }
   if ($css -match 'html\.is-busy #mode[\s\S]{0,160}background:\s*#1f6feb') { throw "return-to-receive should use text color, not a filled background" }
   if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
