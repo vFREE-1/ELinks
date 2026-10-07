@@ -151,6 +151,13 @@ $("tab-recv").addEventListener("click", function () { setDeskMode("recv"); });
 $("tab-send").addEventListener("click", function () { setDeskMode("send"); });
 if ($("tab-link")) $("tab-link").addEventListener("click", function () { setDeskMode("link"); });
 
+if ($("mode")) {
+  $("mode").addEventListener("click", function () {
+    if (!document.documentElement.classList.contains("is-busy")) return;
+    if (busyKind === "send") setDeskMode("send");
+  }, true);
+}
+
 function setJoinWifiHint() {
   const name = networkName();
   if ($("join-wifi-title")) $("join-wifi-title").textContent = "手机要连同一个 Wi-Fi";
@@ -565,6 +572,7 @@ let outboundPeer = null;
 let outboundSession = "";
 let outboundBase = "";
 let busyKind = "";
+let hadIncoming = false;
 let outboundLog = [];
 let outboundTick = { t: 0, sent: 0 };
 const BOND_STORE = "elinks.bonds";
@@ -1464,8 +1472,15 @@ async function pollTransfers() {
   $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个进行中") : "0 个进行中";
   $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
   syncBusyEmpty();
-  if ((data.active || []).length && !(data.pendingLinks || []).length) {
+  const incoming = (data.active || []).length > 0 && !(data.pendingLinks || []).length;
+  if (incoming && busyKind !== "send") {
     setBusyDirection("recv");
-    LINKS.setMode(true);
+    const justStarted = !hadIncoming;
+    hadIncoming = true;
+    if (justStarted && !document.documentElement.classList.contains("is-send")) {
+      LINKS.setMode(true);
+    }
+  } else if (!(data.active || []).length) {
+    hadIncoming = false;
   }
 }

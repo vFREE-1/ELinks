@@ -338,6 +338,9 @@ try {
   if ($index -match 'id="open-phone"') { throw "desktop waiting chrome must not include a phone-page entry" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function hideSettings') { throw "settings must close when clicking outside the sheet" }
+  if ($live -match '\(data\.active \|\| \[\]\)\.length && !\(data\.pendingLinks[\s\S]{0,120}setMode\(true\)') { throw "incoming transfers must not keep forcing the receive page" }
+  if ($live -notmatch 'hadIncoming') { throw "incoming transfers may open progress once, then leave the current page alone" }
+  if ($live -notmatch 'busyKind === "send"\) setDeskMode\("send"\)') { throw "leaving send progress must return to send, not receive" }
   if ($live -notmatch 'const PHONE_ICON') { throw "receive page must have a phone icon mark" }
   if ($live -notmatch 'data\.phones') { throw "receive page must paint live phones around the QR" }
   if ($live -notmatch 'sheet\.contains\(e\.target\)') { throw "outside click must ignore presses inside the settings sheet" }

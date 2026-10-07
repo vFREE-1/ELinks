@@ -105,6 +105,10 @@ if (!discoverSrc.includes("announce(true)")) throw new Error("discover must prob
 const live = fs.readFileSync(path.join(ROOT, "live.js"), "utf8");
 if (!live.includes("function rememberOutbound")) throw new Error("send progress must keep completed files");
 if (!live.includes('busyKind === "send"')) throw new Error("send progress must not be replaced by the receive poll");
+if (/\(data\.active \|\| \[\]\)\.length && !\(data\.pendingLinks[\s\S]{0,120}setMode\(true\)/.test(live)) {
+  throw new Error("incoming transfers must not keep forcing the receive page");
+}
+if (!live.includes("hadIncoming")) throw new Error("incoming progress must open once, not on every poll");
 if (!live.includes("function setDeskMode")) throw new Error("desk mode switch missing");
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
