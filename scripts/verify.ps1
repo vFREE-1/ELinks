@@ -400,6 +400,7 @@ try {
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
+  if ($css -match 'html\.is-busy #mode[\s\S]{0,160}background:\s*#1f6feb') { throw "return-to-receive should use text color, not a filled background" }
   if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
   if ($css -notmatch '\.stage \{[\s\S]{0,280}justify-content:\s*center') { throw "QR and caption should sit together in the center" }

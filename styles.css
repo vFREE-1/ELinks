@@ -263,17 +263,15 @@ button.nav:hover {
 
 html.is-busy #mode,
 button.nav.nav-back {
-  color: #fff;
-  background: #1f6feb;
+  color: #1f6feb;
+  background: transparent;
   font-weight: 600;
-  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
-  animation: mode-back-pulse 1.8s ease-in-out infinite;
 }
 
 html.is-busy #mode:hover,
 button.nav.nav-back:hover {
-  color: #fff;
-  background: #1858c7;
+  color: #1858c7;
+  background: transparent;
 }
 
 .live-dot {
@@ -1490,11 +1488,6 @@ button.fill:disabled:hover { background: var(--blue); }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
-}
-
-@keyframes mode-back-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.22); }
-  50% { box-shadow: 0 0 0 7px rgba(31, 111, 235, 0.1); }
 }
 
 @keyframes enter {
