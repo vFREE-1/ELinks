@@ -87,6 +87,7 @@ if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接"))
 if (!index.includes('id="tab-link"') || !index.includes("允许建立")) throw new Error("receiver allow/deny tab missing");
 if (!index.includes("点一台电脑，发给它")) throw new Error("send hint missing");
 if (!index.includes('id="busy-pick-more"')) throw new Error("send progress must offer pick more files");
+if (!index.includes("busy-hero") || !index.includes("busy-boards")) throw new Error("progress page layout missing");
 if (directedBroadcast("192.168.1.22", "255.255.255.0") !== "192.168.1.255") throw new Error("discover must compute the subnet broadcast");
 const discoverSrc = fs.readFileSync(path.join(ROOT, "discover.mjs"), "utf8");
 if (!discoverSrc.includes("255.255.255.255")) throw new Error("discover must broadcast on the lan");

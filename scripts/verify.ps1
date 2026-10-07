@@ -74,6 +74,7 @@ try {
   if ($page.Content -match 'id="open-phone"') { $needStart = $true }
   if ($page.Content -match 'id="peer-modal-status"') { $needStart = $true }
   if ($page.Content -notmatch 'id="busy-pick-more"') { $needStart = $true }
+  if ($page.Content -notmatch 'busy-hero') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
   if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
   $phonePeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing -TimeoutSec 2
@@ -320,6 +321,10 @@ try {
   if ($live -notmatch 'function rememberOutbound') { throw "send progress must keep completed files after the batch" }
   if ($live -notmatch 'busy-pick-more') { throw "send progress must offer pick more files" }
   if ($index -notmatch 'id="busy-pick-more"') { throw "progress list must include a pick-more control" }
+  if ($index -notmatch 'busy-hero') { throw "progress page must put speed and percent in a hero" }
+  if ($index -notmatch 'busy-boards') { throw "progress page must split live and done into two boards" }
+  if ($index -notmatch 'id="live-empty"') { throw "progress page must explain the empty live list" }
+  if ($live -notmatch 'function syncBusyEmpty') { throw "empty hints must hide when files arrive" }
   if ($index -match 'id="peer-modal-status"') { throw "waiting copy must not sit on a faint line above the button" }
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
   if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }

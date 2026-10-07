@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send6" />
+  <link rel="stylesheet" href="styles.css?v=send7" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -182,34 +182,40 @@
       </div>
     </section>
 
-    <section class="busy" aria-label="正在接收">
-      <div class="meter">
-        <div class="meter-figure">
+    <section class="busy" id="busy" aria-label="正在接收">
+      <div class="busy-hero">
+        <div class="busy-speed">
           <strong id="mbps">0</strong>
           <span>M/s</span>
           <em id="mbs">0 M/s</em>
         </div>
-        <div class="track" aria-hidden="true"><i id="meter-fill"></i></div>
-        <div class="meter-side">
-          <b id="util">0%</b>
-          <span id="lane-count">并行接收</span>
-        </div>
-      </div>
-
-      <div class="list">
-        <div class="section-head">
-          <h2 id="busy-live-title">正在接收</h2>
-          <div class="section-head-actions">
-            <button type="button" class="text" id="busy-pick-more" hidden>再选文件</button>
-            <span id="active-count">等待发送</span>
+        <div class="busy-progress">
+          <div class="busy-progress-meta">
+            <b id="util">0%</b>
+            <span id="lane-count">并行接收</span>
           </div>
+          <div class="track" aria-hidden="true"><i id="meter-fill"></i></div>
+          <p class="busy-lead" id="busy-lead">对方选好文件后会出现在左边。</p>
         </div>
-        <div id="live-list"></div>
-        <div class="section-head done-head">
-          <h2 id="busy-done-title">已完成</h2>
-          <span id="busy-done-note">保存在接收目录</span>
-        </div>
-        <div id="live-done"></div>
+        <button type="button" class="fill" id="busy-pick-more" hidden>再选文件</button>
+      </div>
+      <div class="busy-boards">
+        <section class="busy-board" aria-labelledby="busy-live-title">
+          <div class="section-head">
+            <h2 id="busy-live-title">正在接收</h2>
+            <span id="active-count">0 个进行中</span>
+          </div>
+          <div id="live-list"></div>
+          <p class="busy-empty" id="live-empty">还没有文件传过来。</p>
+        </section>
+        <section class="busy-board" aria-labelledby="busy-done-title">
+          <div class="section-head">
+            <h2 id="busy-done-title">已完成</h2>
+            <span id="busy-done-note">保存在接收目录</span>
+          </div>
+          <div id="live-done"></div>
+          <p class="busy-empty" id="done-empty">收完的文件会列在这里。</p>
+        </section>
       </div>
     </section>
 
@@ -227,6 +233,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send5"></script>
-  <script src="live.js?v=send11"></script>
+  <script src="live.js?v=send12"></script>
 </body>
 </html>

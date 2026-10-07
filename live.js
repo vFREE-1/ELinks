@@ -46,7 +46,7 @@ async function boot() {
   showNetPath();
   if ($("now-mps")) $("now-mps").textContent = "0";
   $("today").textContent = "今天已接收 0 个文件";
-  $("active-count").textContent = "等待发送";
+  $("active-count").textContent = "0 个进行中";
   $("mbps").textContent = "0";
   $("mbs").textContent = "0 M/s";
   $("util").textContent = "0%";
@@ -746,9 +746,17 @@ function setBusyDirection(kind) {
   busyKind = kind;
   const sending = kind === "send";
   const name = (outboundPeer && (outboundPeer.alias || outboundPeer.host)) || "附近电脑";
+  if ($("busy")) $("busy").setAttribute("aria-label", sending ? "正在发送" : "正在接收");
   if ($("busy-live-title")) $("busy-live-title").textContent = sending ? "正在发送" : "正在接收";
   if ($("busy-done-title")) $("busy-done-title").textContent = "已完成";
   if ($("busy-done-note")) $("busy-done-note").textContent = sending ? ("发到 " + name) : "保存在接收目录";
+  if ($("busy-lead")) {
+    $("busy-lead").textContent = sending
+      ? ("发到 " + name + "。传完的文件会到右边。")
+      : "对方开始传以后，文件会出现在左边。";
+  }
+  if ($("live-empty")) $("live-empty").textContent = sending ? "还没有正在发送的文件。" : "还没有文件传过来。";
+  if ($("done-empty")) $("done-empty").textContent = sending ? "发完的文件会列在这里。" : "收完的文件会列在这里。";
   if ($("lane-count")) {
     $("lane-count").textContent = sending ? (MAX_CONN + " 路并行发送") : (MAX_CONN + " 路并行 · 按链路调整");
   }
@@ -757,6 +765,11 @@ function setBusyDirection(kind) {
     more.hidden = !sending;
     more.disabled = !sending || outboundActive;
   }
+}
+
+function syncBusyEmpty() {
+  if ($("live-empty")) $("live-empty").hidden = Boolean($("live-list") && $("live-list").children.length);
+  if ($("done-empty")) $("done-empty").hidden = Boolean($("live-done") && $("live-done").children.length);
 }
 
 function appendDoneRow(box, item) {
@@ -808,9 +821,10 @@ function renderOutbound(items) {
   $("mbs").textContent = Math.round(used / 1e6) + " M/s";
   $("util").textContent = Math.min(100, Math.round((used / cap) * 100)) + "%";
   $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
-  $("active-count").textContent = activeCount ? (activeCount + " 个文件并行") : "发送完成";
+  $("active-count").textContent = activeCount ? (activeCount + " 个进行中") : "没有进行中";
   const doneCount = outboundLog.length + (items || []).filter(function (item) { return item.done && !item.error; }).length;
   $("today").textContent = "这次已发送 " + doneCount + " 个文件";
+  syncBusyEmpty();
 }
 
 function rememberOutbound(items) {
@@ -968,8 +982,9 @@ async function pollTransfers() {
   $("mbs").textContent = Math.round(usedM) + " M/s";
   $("util").textContent = Math.min(100, Math.round((used / cap) * 100)) + "%";
   $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
-  $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个文件并行") : "等待发送";
+  $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个进行中") : "0 个进行中";
   $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
+  syncBusyEmpty();
   if ((data.active || []).length) {
     setBusyDirection("recv");
     LINKS.setMode(true);

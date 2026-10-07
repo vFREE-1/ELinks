@@ -812,48 +812,113 @@ html.is-phone .stage { display: none; }
 
 html.is-busy .busy { display: flex; }
 
-.meter {
+.busy-hero {
   flex: none;
-  height: 48px;
   display: grid;
-  grid-template-columns: 210px 1fr 92px;
-  gap: 16px;
+  grid-template-columns: minmax(168px, 220px) minmax(0, 1fr) auto;
+  gap: 28px;
   align-items: center;
-  padding: 0 22px;
+  padding: 22px 28px 20px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 100%);
 }
 
-.meter-figure {
+.busy-speed {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 6px 8px;
   font-variant-numeric: tabular-nums;
 }
 
-.meter-figure strong {
-  font-size: 20px;
+.busy-speed strong {
+  font-size: 40px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1;
 }
 
-.meter-figure span { color: var(--blue); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+.busy-speed span {
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
 
-.meter-figure em {
-  margin-left: 6px;
+.busy-speed em {
+  flex: 1 1 100%;
+  margin: 6px 0 0;
   color: var(--muted);
   font-style: normal;
   font-size: 12px;
+  letter-spacing: 0.04em;
 }
 
-.track { height: 4px; background: var(--track); border-radius: 2px; overflow: hidden; }
+.busy-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+}
 
-.track i { display: block; height: 100%; width: 97%; background: var(--blue); }
+.busy-progress-meta b {
+  font-size: 20px;
+  font-weight: 600;
+}
 
-.meter-side { text-align: right; font-variant-numeric: tabular-nums; }
+.busy-progress-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
 
-.meter-side b { font-size: 15px; font-weight: 600; }
+.busy-lead {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+}
 
-.meter-side span { display: block; color: var(--muted); font-size: 11px; }
+.busy-hero #busy-pick-more {
+  min-width: 128px;
+  height: 40px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
+.busy-boards {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.busy-board {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 24px 20px;
+}
+
+.busy-board + .busy-board {
+  border-left: 1px solid var(--line);
+}
+
+.busy-empty {
+  margin: 36px 0 0;
+  max-width: 16em;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+  letter-spacing: 0.03em;
+}
+
+.busy-empty[hidden] { display: none !important; }
+
+.track { height: 6px; background: var(--track); border-radius: 4px; overflow: hidden; }
+
+.track i { display: block; height: 100%; width: 0; background: var(--blue); }
 
 .list {
   flex: 1;
@@ -862,8 +927,22 @@ html.is-busy .busy { display: flex; }
   padding: 8px 22px 16px;
 }
 
+@media (max-width: 900px) {
+  .busy-hero {
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+  }
+  .busy-progress { grid-column: 1 / -1; }
+  .busy-boards { grid-template-columns: 1fr; }
+  .busy-board + .busy-board {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
 .stage,
 .list,
+.busy-board,
 .phone {
   scrollbar-width: thin;
   scrollbar-color: rgba(31, 111, 235, 0.35) transparent;
@@ -871,18 +950,21 @@ html.is-busy .busy { display: flex; }
 
 .stage::-webkit-scrollbar,
 .list::-webkit-scrollbar,
+.busy-board::-webkit-scrollbar,
 .phone::-webkit-scrollbar {
   width: 8px;
 }
 
 .stage::-webkit-scrollbar-track,
 .list::-webkit-scrollbar-track,
+.busy-board::-webkit-scrollbar-track,
 .phone::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .stage::-webkit-scrollbar-thumb,
 .list::-webkit-scrollbar-thumb,
+.busy-board::-webkit-scrollbar-thumb,
 .phone::-webkit-scrollbar-thumb {
   background: rgba(29, 29, 31, 0.18);
   border-radius: 999px;
@@ -892,6 +974,7 @@ html.is-busy .busy { display: flex; }
 
 .stage::-webkit-scrollbar-thumb:hover,
 .list::-webkit-scrollbar-thumb:hover,
+.busy-board::-webkit-scrollbar-thumb:hover,
 .phone::-webkit-scrollbar-thumb:hover {
   background: rgba(31, 111, 235, 0.45);
   border: 2px solid transparent;
@@ -919,29 +1002,9 @@ html.is-busy .busy { display: flex; }
   color: var(--muted);
 }
 
-.section-head-actions {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-}
-
 .section-head span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-#busy-pick-more {
-  margin: 0;
-  padding: 0;
-  height: auto;
-  color: var(--blue);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-
 #busy-pick-more[hidden] { display: none !important; }
-
-#busy-pick-more:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
 
 .row {
   display: grid;
