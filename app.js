@@ -172,8 +172,10 @@ function sizeCanvas(canvas, ctx, width, height) {
 function placeRipples() {
   const layer = document.querySelector(".ripples");
   const app = document.querySelector(".app");
-  if (!layer || !app || !plate) return;
-  const qrBox = plate.getBoundingClientRect();
+  const sendField = document.getElementById("universe");
+  const origin = document.documentElement.classList.contains("is-send") && sendField ? sendField : plate;
+  if (!layer || !app || !origin) return;
+  const qrBox = origin.getBoundingClientRect();
   const appBox = app.getBoundingClientRect();
   if (qrBox.width < 8 || appBox.width < 8) return;
   const cx = qrBox.left + qrBox.width / 2 - appBox.left;

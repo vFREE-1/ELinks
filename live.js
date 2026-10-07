@@ -31,6 +31,9 @@ async function boot() {
   $("save-path-bar").value = info.savePath;
   $("pass-flag").hidden = !info.passwordSet;
   applyRings(info.rings !== false);
+  applyDiscoverable(info.discoverable !== false);
+  if ($("alias-name")) $("alias-name").value = info.alias || "";
+  if ($("orb-self-name")) $("orb-self-name").textContent = info.alias || "Elinks";
   if ($("app-version") && info.version) $("app-version").textContent = info.version;
   if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
   if ($("now-mps")) $("now-mps").textContent = "0";
@@ -103,6 +106,28 @@ function setWaitTab(id) {
     requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
   }
 }
+
+function setDeskMode(mode) {
+  const send = mode === "send";
+  const tabRecv = $("tab-recv");
+  const tabSend = $("tab-send");
+  const modeRecv = $("mode-recv");
+  const modeSend = $("mode-send");
+  if (!tabRecv || !tabSend || !modeRecv || !modeSend) return;
+  tabRecv.setAttribute("aria-selected", send ? "false" : "true");
+  tabSend.setAttribute("aria-selected", send ? "true" : "false");
+  modeRecv.hidden = send;
+  modeSend.hidden = !send;
+  document.documentElement.classList.toggle("is-send", send);
+  if ($("brand-sub")) $("brand-sub").textContent = send ? "传到附近" : "桌面接收";
+  if ($("stage")) $("stage").setAttribute("aria-label", send ? "传到附近电脑" : "等待接收");
+  if (send) startUniverse();
+  else stopUniverse();
+  requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
+}
+
+$("tab-recv").addEventListener("click", function () { setDeskMode("recv"); });
+$("tab-send").addEventListener("click", function () { setDeskMode("send"); });
 
 function showPageQr() {
   qrMode = "page";
@@ -270,10 +295,13 @@ async function refreshLink() {
 
 function persistConfig() {
   const ringsOn = !$("rings-toggle") || $("rings-toggle").getAttribute("aria-checked") !== "false";
+  const discoverOn = !$("discover-toggle") || $("discover-toggle").getAttribute("aria-checked") !== "false";
   const body = {
     savePath: $("save-path-bar").value || $("save-path").value,
     password: $("receive-password").value,
-    rings: ringsOn
+    rings: ringsOn,
+    alias: $("alias-name") ? $("alias-name").value : "",
+    discoverable: discoverOn
   };
   return fetch("/api/config", {
     method: "POST",
@@ -287,6 +315,11 @@ function persistConfig() {
     }
     $("pass-flag").hidden = !data.passwordSet;
     applyRings(data.rings !== false);
+    applyDiscoverable(data.discoverable !== false);
+    if (data.alias) {
+      if ($("alias-name")) $("alias-name").value = data.alias;
+      if ($("orb-self-name")) $("orb-self-name").textContent = data.alias;
+    }
     return refreshLink();
   }).catch(function () {});
 }
@@ -306,6 +339,25 @@ $("rings-toggle").addEventListener("click", function () {
   applyRings($("rings-toggle").getAttribute("aria-checked") !== "true");
   persistConfig();
 });
+
+function applyDiscoverable(on) {
+  const btn = $("discover-toggle");
+  if (btn) {
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+  }
+}
+
+if ($("discover-toggle")) {
+  $("discover-toggle").addEventListener("click", function () {
+    applyDiscoverable($("discover-toggle").getAttribute("aria-checked") !== "true");
+    persistConfig();
+  });
+}
+
+if ($("alias-name")) {
+  $("alias-name").addEventListener("change", persistConfig);
+}
 
 function setUpdateStatus(html) {
   const node = $("update-status");
@@ -412,14 +464,271 @@ $("scan").addEventListener("click", function (event) {
   pair(false);
 }, true);
 
+let universeTimer = 0;
+const orbNodes = new Map();
+let outboundActive = false;
+let outboundPeer = null;
+let outboundSession = "";
+let outboundBase = "";
+
+function hashStr(text) {
+  let n = 2166136261;
+  const s = String(text || "");
+  for (let i = 0; i < s.length; i++) n = Math.imul(n ^ s.charCodeAt(i), 16777619);
+  return n >>> 0;
+}
+
+function orbPoint(host) {
+  const n = hashStr(host);
+  const angle = ((n % 360) / 180) * Math.PI;
+  const radius = 28 + (n % 11);
+  return {
+    x: Math.max(14, Math.min(86, 50 + Math.cos(angle) * radius)),
+    y: Math.max(18, Math.min(78, 48 + Math.sin(angle) * radius * 0.78))
+  };
+}
+
+function renderOrbs(peers) {
+  const field = $("universe");
+  const empty = $("universe-empty");
+  if (!field) return;
+  const seen = new Set();
+  (peers || []).forEach(function (peer) {
+    if (!peer || !peer.host) return;
+    seen.add(peer.host);
+    let node = orbNodes.get(peer.host);
+    if (!node) {
+      const point = orbPoint(peer.host);
+      const seed = hashStr(peer.host);
+      node = document.createElement("button");
+      node.type = "button";
+      node.className = "orb";
+      node.style.setProperty("--x", point.x.toFixed(1));
+      node.style.setProperty("--y", point.y.toFixed(1));
+      node.style.animationDelay = "-" + ((seed % 17) * 0.37).toFixed(2) + "s";
+      node.style.animationDuration = (7.2 + (seed % 5) * 0.7).toFixed(1) + "s";
+      node.appendChild(document.createElement("i"));
+      node.appendChild(document.createElement("span"));
+      node.addEventListener("click", function () { choosePeer(peer.host); });
+      field.appendChild(node);
+      orbNodes.set(peer.host, node);
+    }
+    node.querySelector("span").textContent = peer.alias || peer.host;
+    node._peer = peer;
+  });
+  orbNodes.forEach(function (node, host) {
+    if (seen.has(host)) return;
+    node.remove();
+    orbNodes.delete(host);
+  });
+  if (empty) empty.hidden = seen.size > 0;
+}
+
+async function refreshUniverse() {
+  if (!LIVE || !document.documentElement.classList.contains("is-send")) return;
+  try {
+    const data = await fetch("/api/discover").then(function (res) { return res.json(); });
+    renderOrbs(data && data.ok ? (data.peers || []) : []);
+  } catch (err) {
+    renderOrbs([]);
+  }
+}
+
+function startUniverse() {
+  refreshUniverse();
+  if (universeTimer) return;
+  universeTimer = setInterval(refreshUniverse, 2000);
+}
+
+function stopUniverse() {
+  if (!universeTimer) return;
+  clearInterval(universeTimer);
+  universeTimer = 0;
+}
+
+function resetSendTarget() {
+  outboundPeer = null;
+  outboundSession = "";
+  outboundBase = "";
+  if ($("send-target")) $("send-target").hidden = true;
+  if ($("send-copy")) $("send-copy").hidden = false;
+  if ($("universe")) $("universe").hidden = false;
+  if ($("send-pass-block")) $("send-pass-block").hidden = true;
+  if ($("peer-password")) $("peer-password").value = "";
+  if ($("peer-pass-error")) $("peer-pass-error").hidden = true;
+  if ($("send-pick-files")) $("send-pick-files").hidden = false;
+  requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
+}
+
+function showSendTarget(peer) {
+  outboundPeer = peer;
+  outboundSession = "";
+  outboundBase = "";
+  $("send-peer-name").textContent = peer.alias || peer.host;
+  $("send-peer-lead").textContent = (peer.host || "") + ":" + (peer.port || 8730);
+  $("universe").hidden = true;
+  $("send-copy").hidden = true;
+  $("send-target").hidden = false;
+  $("send-pass-block").hidden = true;
+  $("send-pick-files").hidden = false;
+}
+
+async function connectPeer(password) {
+  const peer = outboundPeer;
+  if (!peer) return false;
+  if (!peer.token) {
+    $("send-peer-lead").textContent = "这台电脑还不能这样传，请更新后再试。";
+    return false;
+  }
+  const base = "http://" + peer.host + ":" + (Number(peer.port) || 8730);
+  try {
+    const res = await fetch(base + "/api/pair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: peer.token, password: password || "" })
+    });
+    const data = await res.json();
+    $("peer-pass-error").hidden = true;
+    if (data.needPassword) {
+      $("send-pass-block").hidden = false;
+      $("send-pick-files").hidden = true;
+      $("peer-password").focus();
+      return false;
+    }
+    if (!data.ok) {
+      $("peer-pass-error").hidden = false;
+      $("send-pass-block").hidden = false;
+      $("send-pick-files").hidden = true;
+      return false;
+    }
+    outboundSession = data.session;
+    outboundBase = base;
+    $("send-pass-block").hidden = true;
+    $("send-pick-files").hidden = false;
+    return true;
+  } catch (err) {
+    $("send-peer-lead").textContent = "打不开这台电脑，确认两边都开着 Elinks。";
+    return false;
+  }
+}
+
+function choosePeer(host) {
+  const node = orbNodes.get(host);
+  const peer = node && node._peer;
+  if (!peer) return;
+  showSendTarget(peer);
+  connectPeer("");
+}
+
+function setBusyDirection(kind) {
+  const sending = kind === "send";
+  const name = ($("send-peer-name") && $("send-peer-name").textContent) || "附近电脑";
+  if ($("busy-live-title")) $("busy-live-title").textContent = sending ? "正在发送" : "正在接收";
+  if ($("busy-done-title")) $("busy-done-title").textContent = "已完成";
+  if ($("busy-done-note")) $("busy-done-note").textContent = sending ? ("发到 " + name) : "保存在接收目录";
+  if ($("lane-count")) {
+    $("lane-count").textContent = sending ? (MAX_CONN + " 路并行发送") : (MAX_CONN + " 路并行 · 按链路调整");
+  }
+}
+
+function renderOutbound(items) {
+  const live = $("live-list");
+  const doneBox = $("live-done");
+  if (!live || !doneBox) return;
+  live.innerHTML = "";
+  doneBox.innerHTML = "";
+  let used = 0;
+  let activeCount = 0;
+  (items || []).forEach(function (item) {
+    const row = {
+      name: item.name,
+      size: item.size,
+      received: item.sent || 0,
+      speed: 0
+    };
+    if (item.done) {
+      const node = document.createElement("div");
+      node.className = "done-row";
+      node.innerHTML = "<b></b><span></span><span></span><span></span>";
+      node.querySelector("b").textContent = item.name;
+      node.children[1].textContent = formatSize(item.size);
+      node.children[2].textContent = item.error ? "失败" : "已发出";
+      node.children[3].textContent = item.error ? item.error : "完成";
+      doneBox.appendChild(node);
+      return;
+    }
+    activeCount += 1;
+    live.insertAdjacentHTML("beforeend", renderRow(row));
+    fillRow(live.lastElementChild, row);
+  });
+  const cap = ((info && info.linkMps) || 125) * 1e6;
+  if ($("now-mps")) $("now-mps").textContent = Math.round(used / 1e6).toString();
+  $("mbps").textContent = Math.round(used / 1e6).toString();
+  $("mbs").textContent = Math.round(used / 1e6) + " M/s";
+  $("util").textContent = Math.min(100, Math.round((used / cap) * 100)) + "%";
+  $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
+  $("active-count").textContent = activeCount ? (activeCount + " 个文件并行") : "发送完成";
+  $("today").textContent = "这次已发送 " + (items || []).filter(function (item) { return item.done && !item.error; }).length + " 个文件";
+}
+
+function startOutbound(files) {
+  outboundActive = true;
+  setBusyDirection("send");
+  LINKS.setMode(true);
+  import("./send.mjs").then(function (mod) {
+    return mod.sendFiles(files, {
+      session: outboundSession,
+      lanes: MAX_CONN,
+      base: outboundBase,
+      onProgress: renderOutbound
+    });
+  }).then(function () {
+    outboundActive = false;
+  }).catch(function () {
+    outboundActive = false;
+  });
+}
+
 $("pick-files").addEventListener("click", function () {
   $("file-input").click();
 });
 
+if ($("send-pick-files")) {
+  $("send-pick-files").addEventListener("click", function () {
+    if (!outboundSession) {
+      connectPeer($("peer-password") ? $("peer-password").value : "").then(function (ok) {
+        if (ok) $("file-input").click();
+      });
+      return;
+    }
+    $("file-input").click();
+  });
+}
+
+if ($("send-back")) {
+  $("send-back").addEventListener("click", function () {
+    resetSendTarget();
+  });
+}
+
+if ($("peer-pass-go")) {
+  $("peer-pass-go").addEventListener("click", function () {
+    connectPeer($("peer-password").value).then(function (ok) {
+      if (ok) $("file-input").click();
+    });
+  });
+}
+
 $("file-input").addEventListener("change", function () {
   const files = Array.prototype.slice.call($("file-input").files || []);
   $("file-input").value = "";
-  if (!files.length || !sessionId) return;
+  if (!files.length) return;
+  if (outboundSession && outboundBase) {
+    startOutbound(files);
+    return;
+  }
+  if (!sessionId) return;
+  setBusyDirection("recv");
   LINKS.setMode(true);
   import("./send.mjs").then(function (mod) {
     return mod.sendFiles(files, { session: sessionId, lanes: MAX_CONN });
@@ -461,7 +770,7 @@ function fillRow(node, item) {
 }
 
 async function pollTransfers() {
-  if (!LIVE) return;
+  if (!LIVE || outboundActive) return;
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
   const live = $("live-list");
   live.innerHTML = "";
@@ -492,5 +801,8 @@ async function pollTransfers() {
   $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
   $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个文件并行") : "等待发送";
   $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
-  if ((data.active || []).length) LINKS.setMode(true);
+  if ((data.active || []).length) {
+    setBusyDirection("recv");
+    LINKS.setMode(true);
+  }
 }

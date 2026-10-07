@@ -65,6 +65,8 @@ try {
   if ($peek.phoneUrl -notmatch 'phone.html') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'httpsPort') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'discoverPort') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'alias') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'discoverable') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -107,6 +109,8 @@ try {
   if ($info.tls -isnot [bool]) { throw "info.tls must be a boolean" }
   if ([int]$info.httpsPort -ne 8731) { throw "https port should be 8731" }
   if ([int]$info.discoverPort -ne 8732) { throw "discover port should be 8732" }
+  if (-not $info.alias) { throw "info.alias missing" }
+  if ($info.discoverable -isnot [bool]) { throw "info.discoverable must be a boolean" }
   if ($info.httpsUrl -notmatch '^https://') { throw "httpsUrl must be https" }
   if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
   if ($info.usb -and $info.path -ne "usb") { throw "usb linked must prefer the usb path" }
@@ -226,6 +230,9 @@ try {
   node (Join-Path $RootFull "scripts\verify-protocol.mjs")
   if ($LASTEXITCODE -ne 0) { throw "protocol verify failed" }
 
+  node (Join-Path $RootFull "scripts\verify-send.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "send/discover ui verify failed" }
+
   $passCfg = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json" -Body (@{ savePath = $Received; password = "vtest"; rings = $false } | ConvertTo-Json)
   if (-not $passCfg.passwordSet) { throw "passwordSet should be true after setting a password" }
   if ($passCfg.rings -ne $false) { throw "rings off should persist" }
@@ -267,6 +274,11 @@ try {
   }
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
   if ($index -notmatch 'id="net-path"') { throw "transfer path must sit beside the speed chip" }
+  if ($index -notmatch 'id="tab-recv"') { throw "receive tab missing" }
+  if ($index -notmatch 'id="tab-send"') { throw "send tab missing" }
+  if ($index -notmatch 'id="universe"') { throw "send universe missing" }
+  if ($index -notmatch 'id="alias-name"') { throw "alias setting missing" }
+  if ($index -notmatch 'id="discover-toggle"') { throw "discover toggle missing" }
   if ($index -notmatch 'id="tab-scan"') { throw "scan tab missing" }
   if ($index -notmatch 'id="tab-addr"') { throw "address tab missing" }
   if ($index -notmatch 'id="panel-scan"') { throw "scan panel missing" }
@@ -275,6 +287,7 @@ try {
   if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
+  if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
   if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
@@ -301,7 +314,7 @@ try {
   if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
   if ($index -notmatch 'id="random-password"') { throw "random password button missing" }
   if ($index -notmatch 'id="check-update"') { throw "update check missing" }
-  if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub">桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
+  if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub"[^>]*>桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw

@@ -175,5 +175,6 @@ if (tls.json.tls !== true) throw new Error("https health should report tls");
 const beacon = await discoverOnce();
 if (beacon.app !== "Elinks") throw new Error("discover reply missing");
 if (Number(beacon.httpsPort) !== HTTPS_PORT) throw new Error("discover httpsPort missing");
+if (!beacon.token || beacon.token !== info.token) throw new Error("discover token missing");
 
 console.log("PROTOCOL_OK resume=1 cancel=1 tls=1 discover=1");

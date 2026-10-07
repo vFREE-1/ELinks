@@ -5,7 +5,9 @@ export const DISCOVER_GROUP = "224.0.0.167";
 
 export function startDiscover(opts) {
   const getHost = opts && opts.getHost ? opts.getHost : () => "127.0.0.1";
-  const alias = (opts && opts.alias) || "Elinks";
+  const getAlias = opts && opts.getAlias ? opts.getAlias : () => (opts && opts.alias) || "Elinks";
+  const getToken = opts && opts.getToken ? opts.getToken : () => "";
+  const getDiscoverable = opts && opts.getDiscoverable ? opts.getDiscoverable : () => true;
   const port = Number(opts && opts.port) || 8730;
   const httpsPort = Number(opts && opts.httpsPort) || 0;
   const socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
@@ -15,10 +17,11 @@ export function startDiscover(opts) {
     return {
       v: 1,
       app: "Elinks",
-      alias,
+      alias: getAlias(),
       host: getHost(),
       port,
       httpsPort,
+      token: getToken(),
       probe: Boolean(probe)
     };
   }
@@ -33,13 +36,21 @@ export function startDiscover(opts) {
     }
     if (!msg || msg.app !== "Elinks") return;
     if (msg.probe) {
+      if (!getDiscoverable()) return;
       const reply = Buffer.from(JSON.stringify(payload(false)));
       socket.send(reply, rinfo.port, rinfo.address);
       return;
     }
     const host = String(msg.host || "");
     if (!host || host === getHost()) return;
-    peers.set(host, { host, port: msg.port, httpsPort: msg.httpsPort, alias: msg.alias, at: Date.now() });
+    peers.set(host, {
+      host,
+      port: msg.port,
+      httpsPort: msg.httpsPort,
+      alias: msg.alias,
+      token: msg.token || "",
+      at: Date.now()
+    });
   });
 
   socket.bind(DISCOVER_PORT, "0.0.0.0", () => {
@@ -49,6 +60,7 @@ export function startDiscover(opts) {
   });
 
   const timer = setInterval(() => {
+    if (!getDiscoverable()) return;
     const buf = Buffer.from(JSON.stringify(payload(false)));
     try { socket.send(buf, DISCOVER_PORT, DISCOVER_GROUP); } catch { /* ignore */ }
   }, 2000);

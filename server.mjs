@@ -191,6 +191,16 @@ function openHotspot() {
   execFile("cmd.exe", ["/c", "start", "ms-settings:network-mobilehotspot"], { windowsHide: true });
 }
 
+function defaultAlias() {
+  const raw = String(os.hostname() || "Elinks").replace(/\.local$/i, "").trim();
+  return raw.slice(0, 24) || "Elinks";
+}
+
+function cleanAlias(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim().slice(0, 24);
+  return text || defaultAlias();
+}
+
 function loadConfig() {
   fs.mkdirSync(DATA, { recursive: true });
   fs.mkdirSync(DEFAULT_SAVE, { recursive: true });
@@ -200,13 +210,15 @@ function loadConfig() {
       return {
         savePath: String(data.savePath || DEFAULT_SAVE),
         password: String(data.password || ""),
-        rings: data.rings !== false
+        rings: data.rings !== false,
+        alias: cleanAlias(data.alias),
+        discoverable: data.discoverable !== false
       };
     }
   } catch {
     /* default */
   }
-  return { savePath: DEFAULT_SAVE, password: "", rings: true };
+  return { savePath: DEFAULT_SAVE, password: "", rings: true, alias: defaultAlias(), discoverable: true };
 }
 
 function saveConfig(cfg) {
@@ -351,12 +363,22 @@ async function writeRange(req, filePath, offset, onBytes) {
   return written;
 }
 
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "600"
+  };
+}
+
 function sendJson(res, payload, status = 200) {
   const body = Buffer.from(JSON.stringify(payload));
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": body.length,
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    ...corsHeaders()
   });
   res.end(body);
 }
@@ -551,6 +573,11 @@ async function handleUpload(req, res, url) {
 async function handleRequest(req, res) {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsHeaders());
+      res.end();
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/health") {
       sendJson(res, {
         ok: true,
@@ -591,7 +618,9 @@ async function handleRequest(req, res) {
         httpsPort: HTTPS_PORT,
         httpsUrl: `https://${hosts.host}:${HTTPS_PORT}/`,
         discover: Boolean(discoverHub),
-        discoverPort: DISCOVER_PORT
+        discoverPort: DISCOVER_PORT,
+        alias: cfg.alias,
+        discoverable: cfg.discoverable !== false
       });
       return;
     }
@@ -659,9 +688,18 @@ async function handleRequest(req, res) {
       if ("savePath" in incoming) cfg.savePath = String(incoming.savePath || "").trim() || cfg.savePath;
       if ("password" in incoming) cfg.password = String(incoming.password);
       if ("rings" in incoming) cfg.rings = incoming.rings !== false;
+      if ("alias" in incoming) cfg.alias = cleanAlias(incoming.alias);
+      if ("discoverable" in incoming) cfg.discoverable = incoming.discoverable !== false;
       fs.mkdirSync(path.resolve(cfg.savePath), { recursive: true });
       saveConfig(cfg);
-      sendJson(res, { ok: true, savePath: cfg.savePath, passwordSet: Boolean(String(cfg.password).trim()), rings: cfg.rings !== false });
+      sendJson(res, {
+        ok: true,
+        savePath: cfg.savePath,
+        passwordSet: Boolean(String(cfg.password).trim()),
+        rings: cfg.rings !== false,
+        alias: cfg.alias,
+        discoverable: cfg.discoverable !== false
+      });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/allow-lan") {
@@ -741,6 +779,10 @@ async function handleRequest(req, res) {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/discover") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
       sendJson(res, { ok: true, peers: discoverHub ? discoverHub.peers() : [], port: DISCOVER_PORT });
       return;
     }
@@ -775,7 +817,9 @@ function startTlsAndDiscover() {
   if (!discoverHub) {
     discoverHub = startDiscover({
       getHost: lanIp,
-      alias: "Elinks",
+      getAlias: () => loadConfig().alias,
+      getToken: () => pairToken,
+      getDiscoverable: () => loadConfig().discoverable !== false,
       port: PORT,
       httpsPort: HTTPS_PORT
     });

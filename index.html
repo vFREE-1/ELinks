@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=tabs2" />
+  <link rel="stylesheet" href="styles.css?v=send1" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -19,7 +19,7 @@
       <div class="brand">
         <img class="brand-mark" src="assets/mark.svg" width="20" height="20" alt="" />
         <div class="brand-name">Elinks</div>
-        <span class="brand-sub">桌面接收</span>
+        <span class="brand-sub" id="brand-sub">桌面接收</span>
       </div>
       <div class="top-actions">
         <div class="net" id="net-chip" title="当前走 Wi-Fi / 网卡最高速度">
@@ -37,51 +37,88 @@
       </div>
     </header>
 
-    <section class="stage" aria-label="等待接收">
-      <div class="stage-tabs" role="tablist" aria-label="上传方式">
-        <button type="button" class="stage-tab" id="tab-scan" role="tab" aria-selected="true" aria-controls="panel-scan">扫码上传</button>
-        <button type="button" class="stage-tab" id="tab-addr" role="tab" aria-selected="false" aria-controls="panel-addr">地址上传</button>
+    <section class="stage" id="stage" aria-label="等待接收">
+      <div class="stage-tabs" role="tablist" aria-label="接收或发送">
+        <button type="button" class="stage-tab" id="tab-recv" role="tab" aria-selected="true" aria-controls="mode-recv">接收</button>
+        <button type="button" class="stage-tab" id="tab-send" role="tab" aria-selected="false" aria-controls="mode-send">发送</button>
       </div>
-      <div class="stage-panel" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan">
-        <div class="stage-main">
-          <div class="listen">
-            <div class="plate">
-              <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+      <div class="desk-mode" id="mode-recv">
+        <div class="stage-tabs sub" role="tablist" aria-label="上传方式">
+          <button type="button" class="stage-tab" id="tab-scan" role="tab" aria-selected="true" aria-controls="panel-scan">扫码上传</button>
+          <button type="button" class="stage-tab" id="tab-addr" role="tab" aria-selected="false" aria-controls="panel-addr">地址上传</button>
+        </div>
+        <div class="stage-panel" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan">
+          <div class="stage-main">
+            <div class="listen">
+              <div class="plate">
+                <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+              </div>
             </div>
           </div>
+          <div class="stage-copy">
+            <h1 id="stage-title">等待接收</h1>
+            <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
+          </div>
         </div>
-        <div class="stage-copy">
-          <h1 id="stage-title">等待接收</h1>
-          <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
+        <div class="stage-panel" id="panel-addr" role="tabpanel" aria-labelledby="tab-addr" hidden>
+          <div class="stage-copy">
+            <h1>地址上传</h1>
+            <p>在手机浏览器打开或粘贴下面的地址，就会进入选照片。</p>
+            <label class="address-box">
+              <span>在手机里打开或粘贴</span>
+              <span class="address-field">
+                <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，点击复制" />
+                <button type="button" class="copy-chip" id="copy-host">复制</button>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="stage-extra">
+          <button type="button" class="join-wifi" id="join-wifi" hidden>
+            <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
+            <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
+          </button>
+          <button type="button" class="join-wifi" id="allow-lan" hidden>
+            <strong id="allow-lan-title">检查过了：手机现在连不进来</strong>
+            <span id="allow-lan-copy">点这里允许接入。只需确认一次，确认后会再检查一次。</span>
+          </button>
         </div>
       </div>
-      <div class="stage-panel" id="panel-addr" role="tabpanel" aria-labelledby="tab-addr" hidden>
-        <div class="stage-copy">
-          <h1>地址上传</h1>
-          <p>在手机浏览器打开或粘贴下面的地址，就会进入选照片。</p>
-          <label class="address-box">
-            <span>在手机里打开或粘贴</span>
-            <span class="address-field">
-              <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，点击复制" />
-              <button type="button" class="copy-chip" id="copy-host">复制</button>
-            </span>
-          </label>
+      <div class="desk-mode send-mode" id="mode-send" hidden>
+        <div class="universe" id="universe">
+          <button type="button" class="orb self" id="orb-self" disabled>
+            <i></i>
+            <span id="orb-self-name">Elinks</span>
+          </button>
+          <p class="universe-empty" id="universe-empty">附近还没有其他 Elinks</p>
         </div>
-      </div>
-      <div class="stage-extra">
-        <button type="button" class="join-wifi" id="join-wifi" hidden>
-          <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
-          <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
-        </button>
-        <button type="button" class="join-wifi" id="allow-lan" hidden>
-          <strong id="allow-lan-title">检查过了：手机现在连不进来</strong>
-          <span id="allow-lan-copy">点这里允许接入。只需确认一次，确认后会再检查一次。</span>
-        </button>
+        <div class="stage-copy" id="send-copy">
+          <h1>传到附近电脑</h1>
+          <p>点一颗球，选照片或视频发过去。两边都要开着 Elinks。</p>
+        </div>
+        <div class="stage-copy send-target" id="send-target" hidden>
+          <h1>传到 <span id="send-peer-name"></span></h1>
+          <p id="send-peer-lead">选中后立即发到那台电脑。</p>
+          <div class="send-pass" id="send-pass-block" hidden>
+            <label for="peer-password">接收密码</label>
+            <input id="peer-password" type="password" autocomplete="current-password" />
+            <p class="error" id="peer-pass-error" hidden>密码不正确</p>
+            <button type="button" class="fill" id="peer-pass-go">确认</button>
+          </div>
+          <button type="button" class="fill" id="send-pick-files">选择照片和视频</button>
+          <button type="button" class="text" id="send-back">返回附近电脑</button>
+        </div>
       </div>
     </section>
 
     <section class="sheet" id="settings" hidden>
-      <h2>接收设置</h2>
+      <h2>设置</h2>
+      <label for="alias-name">本机名称</label>
+      <input id="alias-name" spellcheck="false" autocomplete="off" maxlength="24" placeholder="出现在附近电脑上" />
+      <div class="switch-row">
+        <span>允许附近电脑发现这台</span>
+        <button type="button" class="switch on" id="discover-toggle" role="switch" aria-checked="true" aria-label="允许附近电脑发现这台"></button>
+      </div>
       <label for="save-path">保存路径</label>
       <input id="save-path" spellcheck="false" autocomplete="off" />
       <label for="receive-password">接收密码</label>
@@ -144,13 +181,13 @@
 
       <div class="list">
         <div class="section-head">
-          <h2>正在接收</h2>
+          <h2 id="busy-live-title">正在接收</h2>
           <span id="active-count">等待发送</span>
         </div>
         <div id="live-list"></div>
         <div class="section-head done-head">
-          <h2>已完成</h2>
-          <span>保存在接收目录</span>
+          <h2 id="busy-done-title">已完成</h2>
+          <span id="busy-done-note">保存在接收目录</span>
         </div>
         <div id="live-done"></div>
       </div>
@@ -169,7 +206,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=tabs2"></script>
-  <script src="live.js?v=tabs2"></script>
+  <script src="app.js?v=send1"></script>
+  <script src="live.js?v=send1"></script>
 </body>
 </html>

@@ -3,8 +3,14 @@ import { missingSlices, rangeBytes } from "./resume.mjs";
 
 let active = {
   cancelled: false,
-  xhrs: []
+  xhrs: [],
+  base: ""
 };
+
+function apiUrl(path) {
+  const root = String(active.base || "").replace(/\/$/, "");
+  return root + path;
+}
 
 export function cancelSend() {
   active.cancelled = true;
@@ -28,7 +34,7 @@ function putSlice(item, start, end, session, onProgress) {
     });
     const xhr = new XMLHttpRequest();
     active.xhrs.push(xhr);
-    xhr.open("PUT", "/api/upload?" + query.toString());
+    xhr.open("PUT", apiUrl("/api/upload?" + query.toString()));
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
     xhr.upload.onprogress = function (ev) {
       if (ev.lengthComputable && onProgress) onProgress(ev.loaded);
@@ -83,7 +89,7 @@ async function loadResume(item, session) {
     size: String(item.size)
   });
   try {
-    const data = await fetch("/api/resume?" + query.toString()).then(function (res) { return res.json(); });
+    const data = await fetch(apiUrl("/api/resume?" + query.toString())).then(function (res) { return res.json(); });
     item.ranges = data && data.ranges ? data.ranges : [];
   } catch (err) {
     item.ranges = [];
@@ -100,7 +106,7 @@ export async function sendFiles(files, opts) {
   const session = opts.session;
   const lanes = Math.max(1, Number(opts.lanes) || 4);
   const ios = isIosUa(typeof navigator !== "undefined" ? navigator.userAgent : "", typeof document !== "undefined" && "ontouchend" in document);
-  active = { cancelled: false, xhrs: [] };
+  active = { cancelled: false, xhrs: [], base: String(opts.base || "") };
   const items = Array.prototype.map.call(files, function (file, index) {
     const name = file.name || ("file-" + (index + 1));
     return {

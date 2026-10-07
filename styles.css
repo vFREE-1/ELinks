@@ -311,6 +311,167 @@ html:not(.is-busy) .live-dot { animation: pulse 2.8s ease-in-out infinite; }
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.stage-tabs.sub {
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.stage-tabs.sub .stage-tab {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.desk-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+}
+
+.desk-mode.send-mode {
+  justify-content: stretch;
+}
+
+.desk-mode[hidden] { display: none; }
+
+html.is-send .stage {
+  justify-content: stretch;
+  padding: 8px 0 12px;
+}
+
+.universe {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  width: min(720px, 92vw);
+  min-height: 260px;
+  overflow: hidden;
+}
+
+.universe-empty {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.universe-empty[hidden] { display: none; }
+
+.orb {
+  position: absolute;
+  left: calc(var(--x, 50) * 1%);
+  top: calc(var(--y, 50) * 1%);
+  width: 72px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  animation: orb-drift 8.4s ease-in-out infinite;
+  z-index: 3;
+}
+
+.orb i {
+  display: block;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
+    radial-gradient(circle at 50% 46%, #57c7ff 0 36%, #1f6feb 72%, #0b4fbf 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 0 22px rgba(87, 199, 255, 0.55),
+    0 8px 18px rgba(31, 111, 235, 0.18);
+}
+
+.orb span {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 88px;
+}
+
+.orb.self {
+  --x: 50;
+  --y: 50;
+  cursor: default;
+  animation-duration: 11s;
+  z-index: 2;
+}
+
+.orb.self i {
+  width: 42px;
+  height: 42px;
+  opacity: 0.88;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset,
+    0 0 28px rgba(87, 199, 255, 0.4);
+}
+
+.orb.self span { color: var(--muted); font-weight: 500; }
+
+.orb:not(.self):hover i {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
+    0 0 28px rgba(87, 199, 255, 0.75);
+}
+
+@keyframes orb-drift {
+  0%, 100% { transform: translate(-50%, -50%) translate(0, 0); }
+  35% { transform: translate(-50%, -50%) translate(10px, -12px); }
+  70% { transform: translate(-50%, -50%) translate(-8px, 8px); }
+}
+
+.send-target {
+  gap: 14px;
+}
+
+.send-target .fill {
+  margin-top: 8px;
+  min-width: 220px;
+}
+
+.send-target .text { margin-top: 4px; }
+
+.send-pass {
+  width: min(320px, 86vw);
+  text-align: left;
+}
+
+.send-pass label {
+  display: block;
+  margin: 8px 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.send-pass input {
+  width: 100%;
+  height: 40px;
+  font-size: 16px;
+}
+
 .stage-panel {
   display: flex;
   flex-direction: column;
