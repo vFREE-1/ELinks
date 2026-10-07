@@ -746,7 +746,7 @@ function renderRecvOrbs(bonds) {
     seen.add(peer.host);
     let node = recvOrbNodes.get(peer.host);
     if (!node) {
-      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 40, yScale: 0.82 }));
+      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 42, yScale: 0.72 }));
       recvOrbNodes.set(peer.host, node);
     }
     node.querySelector("span").textContent = peer.alias || peer.host;
@@ -1102,6 +1102,11 @@ function renderOutbound(items) {
   $("active-count").textContent = activeCount ? (activeCount + " 个进行中") : "没有进行中";
   const doneCount = outboundLog.length + (items || []).filter(function (item) { return item.done && !item.error; }).length;
   $("today").textContent = "这次已发送 " + doneCount + " 个文件";
+  const blocked = (items || []).some(function (item) { return item && (item.error === "closed" || item.error === "cancelled"); });
+  if (blocked && outboundPeer) {
+    forgetSenderBond(outboundPeer.host);
+    if ($("busy-pick-more")) $("busy-pick-more").hidden = true;
+  }
   syncBusyEmpty();
 }
 
@@ -1132,14 +1137,13 @@ function startOutbound(files) {
       onProgress: renderOutbound
     });
   }).then(function (items) {
-    const blocked = (items || []).some(function (item) { return item && item.error === "cancelled"; });
+    const blocked = (items || []).some(function (item) { return item && (item.error === "closed" || item.error === "cancelled"); });
     if (blocked && outboundPeer) forgetSenderBond(outboundPeer.host);
     rememberOutbound(items);
     outboundActive = false;
     setBusyDirection("send");
     renderOutbound([]);
   }).catch(function () {
-    if (outboundPeer) forgetSenderBond(outboundPeer.host);
     outboundActive = false;
     setBusyDirection("send");
     renderOutbound([]);

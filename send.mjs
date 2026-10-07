@@ -47,11 +47,7 @@ function putSlice(item, start, end, session, onProgress) {
         return;
       }
       if (xhr.status === 403 || xhr.status === 409) {
-        active.cancelled = true;
-        active.xhrs.slice().forEach(function (open) {
-          try { open.abort(); } catch (err) { /* ignore */ }
-        });
-        reject(new Error("cancelled"));
+        reject(new Error("closed"));
         return;
       }
       reject(new Error("upload " + xhr.status));

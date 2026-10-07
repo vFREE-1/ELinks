@@ -273,7 +273,10 @@ function voidSession(session) {
   const id = String(session || "");
   if (!id) return;
   const rec = sessions.get(id);
-  if (rec) rec.cancelled = true;
+  if (rec) {
+    rec.cancelled = true;
+    rec.closed = true;
+  }
   const gone = [];
   for (const [key, item] of transfers) {
     if (!String(key).startsWith(id + ":") || item.finalized) continue;
@@ -294,19 +297,22 @@ function voidSession(session) {
   });
 }
 
+function closeSession(session) {
+  const rec = sessions.get(String(session || ""));
+  if (!rec || rec.cancelled) return;
+  rec.closed = true;
+}
+
 function sessionRec(id) {
   const rec = sessions.get(id);
   if (!rec || rec.cancelled) return null;
-  if (rec.until && Date.now() > rec.until) {
-    voidSession(id);
-    return null;
-  }
-  return rec;
+  if (rec.until && Date.now() > rec.until) closeSession(id);
+  return sessions.get(id) || null;
 }
 
 function dropLinkSession(row) {
   if (!row || !row.session) return;
-  voidSession(row.session);
+  closeSession(row.session);
 }
 
 function expireLinks() {
@@ -518,7 +524,8 @@ async function cancelSession(session) {
 
 async function handleUpload(req, res, url) {
   const session = url.searchParams.get("session") || req.headers["x-session"] || "";
-  if (!sessionRec(session)) {
+  const rec = sessionRec(session);
+  if (!rec) {
     sendJson(res, { ok: false, error: sessions.get(session) && sessions.get(session).cancelled ? "cancelled" : "no session" }, sessions.get(session) ? 409 : 403);
     return;
   }
@@ -539,6 +546,10 @@ async function handleUpload(req, res, url) {
   }
   const root = saveRoot();
   const key = `${session}:${name}:${size}`;
+  if (rec.closed && !transfers.has(key)) {
+    sendJson(res, { ok: false, error: "closed" }, 409);
+    return;
+  }
   const now = Date.now();
   let item;
   try {
@@ -597,10 +608,6 @@ async function handleUpload(req, res, url) {
     if (size > 0) {
       let incoming = 0;
       written = await writeRange(req, item.part, offset, (n) => {
-        if (!sessionRec(session)) {
-          try { req.destroy(); } catch { /* ignore */ }
-          return;
-        }
         incoming += n;
         bumpSpeed(item, n);
         item.received = Math.min(size, rangeBytes(item.ranges) + incoming);
@@ -610,7 +617,8 @@ async function handleUpload(req, res, url) {
       await new Promise((resolve) => req.on("end", resolve));
     }
   } catch (err) {
-    if (!sessionRec(session)) {
+    const live = sessions.get(session);
+    if (!live || live.cancelled) {
       sendJson(res, { ok: false, error: "cancelled" }, 409);
       return;
     }
@@ -618,10 +626,6 @@ async function handleUpload(req, res, url) {
   } finally {
     if (item && item.reqs) item.reqs.delete(req);
     stats.inflight = Math.max(0, stats.inflight - 1);
-  }
-  if (!sessionRec(session)) {
-    sendJson(res, { ok: false, error: "cancelled" }, 409);
-    return;
   }
   stats.bytes += written;
   await withLock(`${item.id}:meta`, async () => {
@@ -664,7 +668,8 @@ async function handleRequest(req, res) {
         tls: httpsReady,
         discover: Boolean(discoverHub),
         clearDone: true,
-        sessionHold: true
+        sessionHold: true,
+        sessionDrain: true
       });
       return;
     }
@@ -947,6 +952,11 @@ async function handleRequest(req, res) {
         return;
       }
       const key = `${session}:${name}:${size}`;
+      const rec = sessions.get(session);
+      if (rec && rec.closed && !transfers.get(key)) {
+        sendJson(res, { ok: false, error: "closed" }, 409);
+        return;
+      }
       const item = transfers.get(key);
       if (item) {
         sendJson(res, { ok: true, ranges: mergeRanges(item.ranges), received: rangeBytes(item.ranges), size });

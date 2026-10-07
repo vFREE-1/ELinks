@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -365,8 +365,9 @@ try {
   if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
   if ($mainSrv -notmatch '/api/transfers-clear') { throw "clearing completed records must not touch saved files" }
-  if ($mainSrv -notmatch 'function voidSession') { throw "drop and expiry must void the upload session" }
-  if ($mainSrv -notmatch 'voidSession\(id\)') { throw "expired sessions must stop in-flight uploads" }
+  if ($mainSrv -notmatch 'function voidSession') { throw "phone cancel must still abort the session" }
+  if ($mainSrv -notmatch 'function closeSession') { throw "drop and expiry must close the link without killing the current upload" }
+  if ($mainSrv -notmatch 'rec.closed && !transfers.has\(key\)') { throw "closed sessions must reject new files only" }
   if ($mainSrv -notmatch 'LINK_HOLD_MS = 60 \* 60 \* 1000') { throw "accepted links must persist for one hour" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
@@ -406,6 +407,8 @@ try {
   if ($css -notmatch '\.stage \{[\s\S]{0,280}justify-content:\s*center') { throw "QR and caption should sit together in the center" }
   if ($css -match '\.stage-main \{[\s\S]{0,80}flex:\s*1') { throw "QR block should not stretch away from the caption" }
   if ($css -match 'recv-universe\.has-orbs') { throw "receive orbs must not resize the QR layout" }
+  if ($css -match '\.recv-universe \{[\s\S]{0,180}z-index:\s*3') { throw "receive orbs must sit behind the QR, not cover it" }
+  if ($css -notmatch '\.recv-universe \.orb i \{[\s\S]{0,80}width:\s*26px') { throw "receive orbs must stay smaller than the send-page orbs" }
   if ($css -notmatch 'vector-effect:\s*non-scaling-stroke') { throw "orb lines must stay thin" }
   if ($css -notmatch 'html, body \{[\s\S]{0,120}overflow:\s*hidden') { throw "page must clip the native window scrollbar" }
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }

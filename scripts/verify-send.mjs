@@ -113,7 +113,8 @@ if (!live.includes("function clearDoneRecords")) throw new Error("completed list
 if (!live.includes("function openWifiModal") || live.includes("function showWifiQr")) throw new Error("wifi join must open a floating qr instead of swapping the receive code");
 if (!live.includes("function forgetSenderBond")) throw new Error("sender must forget a dropped or expired bond");
 const sendSrc = fs.readFileSync(path.join(ROOT, "send.mjs"), "utf8");
-if (!sendSrc.includes("xhr.status === 403 || xhr.status === 409")) throw new Error("sender must stop when the receiver voids the session");
+if (!sendSrc.includes('reject(new Error("closed"))')) throw new Error("new files after drop must fail without aborting the current upload");
+if (sendSrc.includes("active.xhrs.slice().forEach")) throw new Error("a closed link must not abort slices already in flight");
 if (live.includes("has-orbs")) throw new Error("receive orbs must not resize the QR layout");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
@@ -268,10 +269,11 @@ try {
       resolve({ status: 0, json: { ok: false, error: "reset" } });
     });
   });
-  if (airResult.json && airResult.json.ok && airResult.json.done) {
-    throw new Error("drop must stop an in-flight upload from finishing");
+  if (!airResult.json || !airResult.json.ok || !airResult.json.done) {
+    throw new Error("drop must let an in-flight upload finish");
   }
-  if (fs.existsSync(airPath)) throw new Error("dropped in-flight upload must not save the file");
+  if (!fs.existsSync(airPath)) throw new Error("in-flight upload should still be saved after drop");
+  rmInside(airPath);
   rmInside(airPart);
   rmInside(airPart + ".map");
 
