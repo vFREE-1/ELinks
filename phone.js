@@ -25,12 +25,23 @@ function inWeChat() {
   return /MicroMessenger/i.test(navigator.userAgent || "");
 }
 
+function inAndroid() {
+  return /Android/i.test(navigator.userAgent || "");
+}
+
 function pickHint() {
-  if ($("wechat-hint")) $("wechat-hint").hidden = !inWeChat();
-  if (inWeChat()) {
-    return "微信里请点右上角用浏览器打开。一次大约只能选 100 张，也可以分几批选。";
+  const limited = inWeChat() || inAndroid();
+  if ($("wechat-hint")) $("wechat-hint").hidden = !limited;
+  if (limited) {
+    return "系统相册一次大约最多 100 张，不是上传限制。选完会马上开始传，更多请再选一些。";
   }
   return "选好就传到这台电脑，不用再改地址。";
+}
+
+function takeInputFiles(input) {
+  const files = Array.prototype.slice.call((input && input.files) || []);
+  if (input) input.value = "";
+  return files;
 }
 
 function setStatus(text) {
@@ -99,11 +110,18 @@ function paint(items) {
 function queueFiles(list) {
   const raw = Array.prototype.slice.call(list || []);
   const files = raw.filter(function (file) {
-    return file && file.size > 0;
+    return file && Number(file.size) > 0;
   });
-  if (!raw.length || !sessionId) return;
+  if (!sessionId) {
+    setStatus("还没连上电脑，请重新扫码。");
+    return;
+  }
+  if (!raw.length) {
+    setStatus("没有选到文件，请再选一次。");
+    return;
+  }
   if (!files.length) {
-    setStatus("还没读到这些照片，请再选一次，或等 iCloud 下完。");
+    setStatus("还没读到这些照片，请再选一次，或等云端下完。");
     return;
   }
   if (sending) {
@@ -114,7 +132,16 @@ function queueFiles(list) {
   $("pick").hidden = true;
   $("send").hidden = false;
   if ($("send-stop")) $("send-stop").hidden = false;
-  setStatus("已经开始传，不用等相册先读完。");
+  setStatus("已选 " + files.length + " 个，开始传。");
+  paint(files.map(function (file, index) {
+    return {
+      name: file.name || ("file-" + (index + 1)),
+      size: Number(file.size) || 0,
+      sent: 0,
+      done: false,
+      error: ""
+    };
+  }));
   sendFiles(files, {
     session: sessionId,
     lanes: lanes,
@@ -177,15 +204,11 @@ $("join-pass").addEventListener("submit", function (event) {
 });
 
 $("file-input").addEventListener("change", function () {
-  const files = $("file-input").files;
-  $("file-input").value = "";
-  queueFiles(files);
+  queueFiles(takeInputFiles($("file-input")));
 });
 
 $("file-more").addEventListener("change", function () {
-  const files = $("file-more").files;
-  $("file-more").value = "";
-  queueFiles(files);
+  queueFiles(takeInputFiles($("file-more")));
 });
 
 if ($("send-stop")) {

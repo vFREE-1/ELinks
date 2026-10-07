@@ -67,12 +67,13 @@ function takeJob(items) {
   for (let i = 0; i < order.length; i++) {
     const item = order[i];
     if (item.done || item.error) continue;
+    if (item.slices === null) continue;
     if (item.size <= 0) {
       item.error = "empty";
       item.done = true;
       continue;
     }
-    if (!item.slices || !item.slices.length) {
+    if (!item.slices.length) {
       item.done = true;
       continue;
     }
@@ -116,15 +117,11 @@ export async function sendFiles(files, opts) {
       chunk: sliceBytes(file.size, ios),
       sent: 0,
       ranges: [],
-      slices: [],
+      slices: null,
       done: false,
       error: ""
     };
   });
-  for (let i = 0; i < items.length; i++) {
-    if (active.cancelled) break;
-    await loadResume(items[i], session);
-  }
 
   function report() {
     if (opts.onProgress) opts.onProgress(items);
@@ -133,10 +130,13 @@ export async function sendFiles(files, opts) {
   return new Promise(function (resolve) {
     let inflight = 0;
     let settled = false;
+    let preparing = 0;
+    let prepIndex = 0;
+    const prepLanes = Math.min(4, items.length);
 
     function finish() {
       if (settled) return;
-      if (inflight > 0) return;
+      if (inflight > 0 || preparing > 0 || prepIndex < items.length) return;
       if (!items.every(function (item) { return item.done || item.error; })) return;
       settled = true;
       report();
@@ -186,7 +186,34 @@ export async function sendFiles(files, opts) {
       finish();
     }
 
+    function prepMore() {
+      if (active.cancelled) {
+        pump();
+        finish();
+        return;
+      }
+      while (preparing < prepLanes && prepIndex < items.length) {
+        const item = items[prepIndex];
+        prepIndex += 1;
+        preparing += 1;
+        loadResume(item, session).then(function () {
+          preparing -= 1;
+          pump();
+          prepMore();
+          finish();
+        }).catch(function () {
+          item.ranges = [];
+          item.slices = missingSlices(item.size, [], item.chunk);
+          preparing -= 1;
+          pump();
+          prepMore();
+          finish();
+        });
+      }
+    }
+
     report();
+    prepMore();
     pump();
   });
 }

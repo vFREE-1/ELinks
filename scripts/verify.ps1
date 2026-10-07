@@ -365,6 +365,9 @@ try {
   if ($phoneJs -notmatch 'cancelSend') { throw "phone page must cancel in-flight uploads" }
   if ($phoneJs -notmatch '/api/cancel') { throw "phone page must tell the receiver to drop the session" }
   if ($phoneJs -notmatch 'MicroMessenger') { throw "phone page must detect WeChat in-app browser" }
+  if ($phoneJs -notmatch 'function takeInputFiles') { throw "phone page must copy the FileList before clearing the input" }
+  if ($phoneJs -match 'const files = \$\("file-input"\)\.files;\s*\$\("file-input"\)\.value') { throw "clearing the live FileList drops the selection on Android" }
+  if ($sendMod.Content -notmatch 'slices: null') { throw "uploader must not wait to resume every file before the first PUT" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
   if ($mainSrv -notmatch 'usb-path.mjs') { throw "usb-path.mjs must be on the client allow list" }
   $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw
