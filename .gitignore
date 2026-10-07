@@ -2,6 +2,7 @@ data/
 received/
 node_modules/
 dist/
+.cache/
 out/
 *.pyc
 __pycache__/

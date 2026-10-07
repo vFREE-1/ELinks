@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+import { scriptFile } from "./runtime.mjs";
 
 export const HTTPS_PORT = 8731;
 
@@ -17,7 +15,7 @@ export function ensureTls(dataDir, hosts) {
     };
   }
   fs.mkdirSync(dir, { recursive: true });
-  const script = path.join(ROOT, "scripts", "make-tls.ps1");
+  const script = scriptFile("make-tls.ps1");
   const names = ["localhost", "127.0.0.1"].concat(hosts || []).filter(Boolean);
   const unique = [];
   names.forEach((name) => {

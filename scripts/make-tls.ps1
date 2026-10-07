@@ -5,9 +5,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 $full = [IO.Path]::GetFullPath($OutDir)
-$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$prefix = $root.TrimEnd("\", "/") + [IO.Path]::DirectorySeparatorChar
-if (-not ($full.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or $full.Equals($root, [StringComparison]::OrdinalIgnoreCase))) {
+
+function Test-Under([string]$Target, [string]$Root) {
+  if (-not $Root) { return $false }
+  $base = [IO.Path]::GetFullPath($Root)
+  $prefix = $base.TrimEnd("\", "/") + [IO.Path]::DirectorySeparatorChar
+  return $Target.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or $Target.Equals($base, [StringComparison]::OrdinalIgnoreCase)
+}
+
+$allowed = @([IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..")))
+if ($env:LOCALAPPDATA) { $allowed += (Join-Path $env:LOCALAPPDATA "Elinks") }
+$docs = [Environment]::GetFolderPath("MyDocuments")
+if ($docs) { $allowed += (Join-Path $docs "Elinks") }
+$ok = $false
+foreach ($root in $allowed) {
+  if (Test-Under $full $root) { $ok = $true; break }
+}
+if (-not $ok) {
   throw "Refusing path outside repo: $full"
 }
 New-Item -ItemType Directory -Force -Path $full | Out-Null

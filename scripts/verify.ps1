@@ -313,6 +313,11 @@ try {
   if ($allowCmd -notmatch 'ExecutionPolicy Bypass') { throw "elevated allow-lan must bypass execution policy" }
   if ($mainSrv -notmatch 'allow-lan.cmd') { throw "allow-lan must launch the cmd wrapper so RunAs keeps the script path" }
   if ($mainSrv -notmatch 'allow-lan.result') { throw "allow-lan must read the elevated result file" }
+  if ($mainSrv -notmatch 'scriptFile\("allow-lan.cmd"\)') { throw "allow-lan must run the unpacked script" }
+  if ($mainSrv -notmatch 'appHome\(\)') { throw "packaged app must keep config and photos outside the install folder" }
+  if ($mainSrv -notmatch 'psQuote\(DATA\)') { throw "allow-lan must pass the writable data directory" }
+  if ($allow -notmatch '\$DataDir') { throw "allow-lan must accept a data directory so the installer can write outside Program Files" }
+  if ($allowCmd -notmatch 'DataDir') { throw "allow-lan cmd must forward the data directory" }
   if ($index -notmatch 'join-wifi-title') { throw "wifi join copy should explain why the receive code fails" }
   if ($index -notmatch 'path-mark') { throw "save path should use a folder icon" }
   if ($index -match '<i class=.path-mark') { throw "save path mark is still a square" }
@@ -369,6 +374,9 @@ try {
   if ($mainSrv -notmatch '/api/cancel') { throw "receiver must cancel a session" }
   if ($mainSrv -notmatch 'HTTPS_PORT') { throw "receiver must listen on https" }
   if ($mainSrv -notmatch 'startDiscover') { throw "receiver must announce itself on the lan" }
+  node (Join-Path $RootFull "scripts\verify-pack.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "pack config verify failed" }
+
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

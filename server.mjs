@@ -18,11 +18,12 @@ import { APP_VERSION, checkUpdate } from "./update.mjs";
 import { mergeRanges, rangeBytes } from "./resume.mjs";
 import { HTTPS_PORT, ensureTls } from "./tls.mjs";
 import { DISCOVER_PORT, startDiscover } from "./discover.mjs";
+import { appHome, scriptFile } from "./runtime.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const DATA = path.join(ROOT, "data");
+const DATA = path.join(appHome(), "data");
 const CONFIG_PATH = path.join(DATA, "config.json");
-const DEFAULT_SAVE = path.join(ROOT, "received");
+const DEFAULT_SAVE = path.join(appHome(), "received");
 const execFileAsync = promisify(execFile);
 const PORT = 8730;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".mjs", ".svg", ".png", ".ico"]);
@@ -159,7 +160,7 @@ function psQuote(value) {
 }
 
 async function allowLan() {
-  const cmd = path.join(ROOT, "scripts", "allow-lan.cmd");
+  const cmd = scriptFile("allow-lan.cmd");
   const resultPath = path.join(DATA, "allow-lan.result");
   const ip = lanIp();
   fs.mkdirSync(DATA, { recursive: true });
@@ -171,7 +172,7 @@ async function allowLan() {
   await execFileAsync("powershell.exe", [
     "-NoProfile",
     "-Command",
-    `Start-Process -FilePath ${psQuote(cmd)} -Verb RunAs -Wait -ArgumentList @(${psQuote(ip)},${psQuote(process.execPath)})`
+    `Start-Process -FilePath ${psQuote(cmd)} -Verb RunAs -Wait -ArgumentList @(${psQuote(ip)},${psQuote(process.execPath)},${psQuote(DATA)})`
   ], { timeout: 180000, windowsHide: true, encoding: "utf8" });
   let result = "";
   try {

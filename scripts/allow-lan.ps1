@@ -1,12 +1,21 @@
 param(
   [string]$LanIp = "",
-  [string]$NodeExe = ""
+  [string]$NodeExe = "",
+  [string]$DataDir = ""
 )
 
 $ErrorActionPreference = "Continue"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = Split-Path -Parent $here
 $data = Join-Path $root "data"
+if ($DataDir) {
+  $candidate = [IO.Path]::GetFullPath($DataDir)
+  $repo = [IO.Path]::GetFullPath($root)
+  $prefix = $repo.TrimEnd("\", "/") + [IO.Path]::DirectorySeparatorChar
+  $underRepo = $candidate.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or $candidate.Equals($repo, [StringComparison]::OrdinalIgnoreCase)
+  $leafOk = $candidate -match '(?i)[\\/]Elinks[\\/]data$'
+  if ($underRepo -or $leafOk) { $data = $candidate }
+}
 $result = Join-Path $data "allow-lan.result"
 New-Item -ItemType Directory -Force -Path $data | Out-Null
 

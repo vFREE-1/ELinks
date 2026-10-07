@@ -1,3 +1,3 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0allow-lan.ps1" -LanIp "%~1" -NodeExe "%~2"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0allow-lan.ps1" -LanIp "%~1" -NodeExe "%~2" -DataDir "%~3"
 exit /b %ERRORLEVEL%

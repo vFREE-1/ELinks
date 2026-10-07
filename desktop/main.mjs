@@ -1,9 +1,6 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, Menu, screen, shell } from "electron";
 import { PORT, startServer } from "../server.mjs";
-
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+import { assetFile } from "../runtime.mjs";
 const SMOKE = process.env.LINKS_SMOKE === "1";
 const TITLEBAR = 40;
 const DEFAULT_W = 1280;
@@ -21,7 +18,7 @@ function createWindow() {
     minHeight: 500,
     backgroundColor: "#ffffff",
     title: "Elinks",
-    icon: path.join(ROOT, "assets", "icon.png"),
+    icon: assetFile("icon.png"),
     autoHideMenuBar: true,
     show: false,
     titleBarStyle: "hidden",

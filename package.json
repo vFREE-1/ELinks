@@ -7,15 +7,68 @@
   "scripts": {
     "dev": "electron .",
     "start": "node server.mjs",
-    "verify": "powershell -NoProfile -File scripts/verify.ps1"
+    "verify": "powershell -NoProfile -File scripts/verify.ps1",
+    "pack": "powershell -NoProfile -File scripts/pack.ps1"
   },
   "dependencies": {
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
-    "electron": "^38.2.0"
+    "electron": "^38.2.0",
+    "electron-builder": "^26.15.3"
   },
   "allowScripts": {
     "electron@38.8.6": true
+  },
+  "build": {
+    "appId": "links.desktop",
+    "productName": "Elinks",
+    "executableName": "Elinks",
+    "npmRebuild": false,
+    "electronDist": "node_modules/electron/dist",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.md",
+      "!dist/**",
+      "!.cache/**",
+      "!received/**",
+      "!data/**",
+      "!scripts/verify*",
+      "!scripts/pack.ps1",
+      "!scripts/make-icon.mjs",
+      "!preview*.png"
+    ],
+    "asarUnpack": [
+      "scripts/make-tls.ps1",
+      "scripts/allow-lan.ps1",
+      "scripts/allow-lan.cmd",
+      "assets/icon.png"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Elinks",
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "unicode": true,
+      "artifactName": "Elinks-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
