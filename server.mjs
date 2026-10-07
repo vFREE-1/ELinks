@@ -643,7 +643,8 @@ async function handleRequest(req, res) {
         lanes: laneCount(),
         adaptive: true,
         tls: httpsReady,
-        discover: Boolean(discoverHub)
+        discover: Boolean(discoverHub),
+        clearDone: true
       });
       return;
     }
@@ -735,6 +736,15 @@ async function handleRequest(req, res) {
         pendingLinks: local ? pendingLinks() : [],
         bonds: local ? liveBonds() : []
       });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/transfers-clear") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      done.length = 0;
+      sendJson(res, { ok: true, done: [] });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/open-dir") {

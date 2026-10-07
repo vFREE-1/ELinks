@@ -1118,6 +1118,25 @@ if ($("busy-pick-more")) {
   });
 }
 
+function clearDoneRecords() {
+  if (busyKind === "send") {
+    outboundLog = [];
+    renderOutbound([]);
+    return;
+  }
+  fetch("/api/transfers-clear", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
+    if (!data || !data.ok) return;
+    const box = $("live-done");
+    if (box) box.innerHTML = "";
+    syncBusyEmpty();
+    if ($("today")) $("today").textContent = "今天已接收 0 个文件";
+  }).catch(function () {});
+}
+
+if ($("clear-done")) {
+  $("clear-done").addEventListener("click", function () { clearDoneRecords(); });
+}
+
 if ($("peer-modal-link")) {
   $("peer-modal-link").addEventListener("click", function () { requestLink(); });
 }

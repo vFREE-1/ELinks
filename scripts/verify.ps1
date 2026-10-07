@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -77,6 +77,7 @@ try {
   if ($page.Content -notmatch 'busy-hero') { $needStart = $true }
   if ($page.Content -notmatch 'id="recv-universe"') { $needStart = $true }
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
@@ -243,6 +244,13 @@ try {
 
   $leaf = [IO.Path]::GetFileName($dest)
   if ($leaf -ne $name) { throw "unexpected file name $leaf" }
+  $listedDone = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers"
+  if (-not (@($listedDone.done) | Where-Object { $_.name -eq $name })) { throw "done list should include the upload before clear" }
+  $cleared = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers-clear" -Method POST -ContentType "application/json" -Body "{}"
+  if (-not $cleared.ok) { throw "transfers-clear should succeed" }
+  $afterClear = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers"
+  if (@($afterClear.done) | Where-Object { $_.name -eq $name }) { throw "clear must drop the display record" }
+  if (-not (Test-Path -LiteralPath $dest)) { throw "clear must not delete the saved file" }
   Remove-Item -LiteralPath $dest
 
   if (Test-Path -LiteralPath $dest) { throw "failed to remove verify fixture" }
@@ -334,6 +342,12 @@ try {
   if ($index -notmatch 'busy-hero') { throw "progress page must put speed and percent in a hero" }
   if ($index -notmatch 'busy-boards') { throw "progress page must split live and done into two boards" }
   if ($index -notmatch 'id="live-empty"') { throw "progress page must explain the empty live list" }
+  if ($index -notmatch 'id="clear-done"') { throw "completed list must offer to clear display records" }
+  $appJs = Get-Content -LiteralPath (Join-Path $RootFull "app.js") -Raw
+  if ($appJs -match '返回等待') { throw "busy nav must say 返回接收, not 返回等待" }
+  if ($appJs -notmatch '返回接收') { throw "busy nav must say 返回接收" }
+  if ($appJs -notmatch 'nav-back') { throw "return-to-receive must be highlighted" }
+  if ($live -notmatch 'function clearDoneRecords') { throw "completed list clear must only wipe display records" }
   if ($live -notmatch 'function syncBusyEmpty') { throw "empty hints must hide when files arrive" }
   if ($index -match 'id="peer-modal-status"') { throw "waiting copy must not sit on a faint line above the button" }
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
@@ -344,6 +358,7 @@ try {
   if ($live -match 'info.linkMps \? String') { throw "zero linkMps must not hide the cap as a dash" }
   if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
+  if ($mainSrv -notmatch '/api/transfers-clear') { throw "clearing completed records must not touch saved files" }
   if ($mainSrv -notmatch 'LINK_HOLD_MS = 60 \* 60 \* 1000') { throw "accepted links must persist for one hour" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }

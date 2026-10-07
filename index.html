@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send8" />
+  <link rel="stylesheet" href="styles.css?v=send9" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -217,7 +217,10 @@
         <section class="busy-board" aria-labelledby="busy-done-title">
           <div class="section-head">
             <h2 id="busy-done-title">已完成</h2>
-            <span id="busy-done-note">保存在接收目录</span>
+            <div class="section-head-actions">
+              <span id="busy-done-note">保存在接收目录</span>
+              <button type="button" class="clear-done" id="clear-done" title="只清这里的列表，不会删除已保存的文件">清理记录</button>
+            </div>
           </div>
           <div id="live-done"></div>
           <p class="busy-empty" id="done-empty">收完的文件会列在这里。</p>
@@ -238,7 +241,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=send5"></script>
-  <script src="live.js?v=send13"></script>
+  <script src="app.js?v=send6"></script>
+  <script src="live.js?v=send14"></script>
 </body>
 </html>

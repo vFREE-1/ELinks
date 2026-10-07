@@ -5,7 +5,9 @@ function $(id) {
 function setMode(busy) {
   document.documentElement.classList.toggle("is-busy", busy);
   if (busy) document.documentElement.classList.remove("is-phone");
-  $("mode").textContent = busy ? "返回等待" : "查看接收";
+  $("mode").textContent = busy ? "返回接收" : "查看接收";
+  $("mode").classList.toggle("nav-back", busy);
+  $("mode").title = busy ? "点这里返回接收页" : "";
 }
 
 $("mode").addEventListener("click", function () {
@@ -53,6 +55,8 @@ $("close-settings").addEventListener("click", function () {
 $("open-dir").addEventListener("click", function () {
   document.documentElement.classList.remove("is-busy", "is-phone");
   $("mode").textContent = "查看接收";
+  $("mode").classList.remove("nav-back");
+  $("mode").title = "";
 });
 
 let passwordAsked = false;

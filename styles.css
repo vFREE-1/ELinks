@@ -261,6 +261,21 @@ button.nav:hover {
   background: rgba(0, 0, 0, 0.045);
 }
 
+html.is-busy #mode,
+button.nav.nav-back {
+  color: #fff;
+  background: #1f6feb;
+  font-weight: 600;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
+  animation: mode-back-pulse 1.8s ease-in-out infinite;
+}
+
+html.is-busy #mode:hover,
+button.nav.nav-back:hover {
+  color: #fff;
+  background: #1858c7;
+}
+
 .live-dot {
   width: 7px;
   height: 7px;
@@ -1083,6 +1098,29 @@ html.is-busy .busy { display: flex; }
 
 .section-head span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
+.section-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+button.clear-done {
+  border: 0;
+  background: transparent;
+  color: #1f6feb;
+  padding: 2px 8px;
+  height: auto;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: var(--tracking-ui);
+}
+
+button.clear-done:hover {
+  background: rgba(31, 111, 235, 0.08);
+}
+
 #busy-pick-more[hidden] { display: none !important; }
 
 .row {
@@ -1416,6 +1454,11 @@ button.fill:disabled:hover { background: var(--blue); }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+
+@keyframes mode-back-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.22); }
+  50% { box-shadow: 0 0 0 7px rgba(31, 111, 235, 0.1); }
 }
 
 @keyframes enter {
