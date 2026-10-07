@@ -398,10 +398,26 @@ function persistConfig() {
   }).catch(function () {});
 }
 
+function hideSettings() {
+  const sheet = $("settings");
+  if (!sheet || sheet.hidden) return;
+  sheet.hidden = true;
+  persistConfig();
+}
+
 $("save-path").addEventListener("change", persistConfig);
 $("save-path-bar").addEventListener("change", persistConfig);
 $("receive-password").addEventListener("change", persistConfig);
 $("close-settings").addEventListener("click", persistConfig);
+
+document.addEventListener("pointerdown", function (e) {
+  const sheet = $("settings");
+  if (!sheet || sheet.hidden) return;
+  if (sheet.contains(e.target)) return;
+  const open = $("open-settings");
+  if (open && open.contains(e.target)) return;
+  hideSettings();
+});
 
 $("random-password").addEventListener("click", function () {
   $("receive-password").value = randomPassword();

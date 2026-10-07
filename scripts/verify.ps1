@@ -337,6 +337,9 @@ try {
   if ($index -notmatch 'id="wifi-join-canvas"') { throw "wifi join modal must show a qr" }
   if ($index -match 'id="open-phone"') { throw "desktop waiting chrome must not include a phone-page entry" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
+  if ($live -notmatch 'function hideSettings') { throw "settings must close when clicking outside the sheet" }
+  if ($live -notmatch 'sheet\.contains\(e\.target\)') { throw "outside click must ignore presses inside the settings sheet" }
+  if ($live -notmatch 'open-settings"\)[\s\S]{0,80}contains\(e\.target\)') { throw "outside click must ignore the settings button itself" }
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
   if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
   if ($live -notmatch 'function requestLink') { throw "send page must request a link before picking files" }
