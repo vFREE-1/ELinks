@@ -67,6 +67,7 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'discoverPort') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'alias') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'discoverable') { $needStart = $true }
+  if ($peek.link -ne $true) { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -111,6 +112,7 @@ try {
   if ([int]$info.discoverPort -ne 8732) { throw "discover port should be 8732" }
   if (-not $info.alias) { throw "info.alias missing" }
   if ($info.discoverable -isnot [bool]) { throw "info.discoverable must be a boolean" }
+  if ($info.link -ne $true) { throw "info.link handshake missing" }
   if ($info.httpsUrl -notmatch '^https://') { throw "httpsUrl must be https" }
   if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
   if ($info.usb -and $info.path -ne "usb") { throw "usb linked must prefer the usb path" }
@@ -276,6 +278,10 @@ try {
   if ($index -notmatch 'id="net-path"') { throw "transfer path must sit beside the speed chip" }
   if ($index -notmatch 'id="tab-recv"') { throw "receive tab missing" }
   if ($index -notmatch 'id="tab-send"') { throw "send tab missing" }
+  if ($index -notmatch 'id="tab-link"') { throw "incoming link tab missing" }
+  if ($index -notmatch 'id="peer-modal"') { throw "peer confirm modal missing" }
+  if ($index -notmatch 'id="peer-modal-link"') { throw "send link button missing" }
+  if ($index -notmatch 'id="link-allow"') { throw "allow link button missing" }
   if ($index -notmatch 'id="universe"') { throw "send universe missing" }
   if ($index -notmatch 'id="alias-name"') { throw "alias setting missing" }
   if ($index -notmatch 'id="discover-toggle"') { throw "discover toggle missing" }
@@ -288,6 +294,7 @@ try {
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
   if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
+  if ($live -notmatch 'function requestLink') { throw "send page must request a link before picking files" }
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
   if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }

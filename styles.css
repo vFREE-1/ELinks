@@ -92,6 +92,9 @@ html.is-busy .ripples,
 html.is-phone .ripples,
 html.rings-off .ripples { display: none; }
 
+html.is-busy .modal,
+html.is-phone .modal { display: none !important; }
+
 .app {
   position: relative;
   height: 100%;
@@ -484,6 +487,98 @@ html.is-send .stage {
 .send-bar .fill {
   min-width: 200px;
 }
+
+.modal {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(10px);
+}
+
+.modal[hidden] { display: none !important; }
+
+.modal-card,
+.link-card {
+  width: min(360px, 90vw);
+  padding: 20px 20px 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(31, 111, 235, 0.18);
+  box-shadow: 0 16px 36px rgba(28, 56, 110, 0.1);
+}
+
+.stage .link-card h2,
+.modal-card h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+.stage .link-card p,
+.modal-status {
+  margin: 0 0 12px;
+  max-width: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+.modal-facts {
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.modal-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.modal-facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
+}
+
+.modal-card .fill,
+.link-actions .fill {
+  width: 100%;
+  margin: 0 0 8px;
+}
+
+.modal-card .text,
+.link-actions .text {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.link-card {
+  text-align: left;
+}
+
+.link-actions {
+  margin-top: 6px;
+}
+
+#tab-link[hidden] { display: none !important; }
 
 .send-pass {
   width: min(320px, 86vw);

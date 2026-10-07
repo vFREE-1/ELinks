@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send3" />
+  <link rel="stylesheet" href="styles.css?v=send4" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -41,6 +41,7 @@
       <div class="stage-tabs" role="tablist" aria-label="接收或发送">
         <button type="button" class="stage-tab" id="tab-recv" role="tab" aria-selected="true" aria-controls="mode-recv">接收</button>
         <button type="button" class="stage-tab" id="tab-send" role="tab" aria-selected="false" aria-controls="mode-send">发送</button>
+        <button type="button" class="stage-tab" id="tab-link" role="tab" aria-selected="false" aria-controls="mode-link" hidden>连接请求</button>
       </div>
       <div class="desk-mode" id="mode-recv">
         <div class="stage-tabs sub" role="tablist" aria-label="上传方式">
@@ -90,22 +91,42 @@
             <i></i>
             <span id="orb-self-name">Elinks</span>
           </button>
-          <span class="universe-empty" id="universe-empty">附近没有其他电脑</span>
+          <span class="universe-empty" id="universe-empty">点一台电脑，发给它</span>
         </div>
-        <div class="send-bar" id="send-target" hidden>
-          <span class="send-bar-name" id="send-bar-name" hidden>传到 <b id="send-peer-name"></b></span>
-          <span class="send-bar-msg" id="send-peer-lead" hidden></span>
-          <div class="send-pass" id="send-pass-block" hidden>
-            <label for="peer-password">接收密码</label>
-            <input id="peer-password" type="password" autocomplete="current-password" />
-            <p class="error" id="peer-pass-error" hidden>密码不正确</p>
-            <button type="button" class="fill" id="peer-pass-go">确认</button>
+      </div>
+      <div class="desk-mode" id="mode-link" hidden>
+        <div class="link-card" id="link-card">
+          <h2>连接请求</h2>
+          <p id="link-empty">现在没有电脑要发文件过来。</p>
+          <div id="link-detail" hidden>
+            <dl class="modal-facts">
+              <div><dt>名称</dt><dd id="link-alias"></dd></div>
+              <div><dt>内网 IP</dt><dd id="link-host"></dd></div>
+              <div><dt>端口</dt><dd id="link-port"></dd></div>
+            </dl>
+            <div class="link-actions">
+              <button type="button" class="fill" id="link-allow">允许建立</button>
+              <button type="button" class="text" id="link-deny">拒绝建立</button>
+            </div>
           </div>
-          <button type="button" class="fill" id="send-pick-files" hidden>选择照片和视频</button>
-          <button type="button" class="text" id="send-back">返回</button>
         </div>
       </div>
     </section>
+    <div class="modal" id="peer-modal" hidden>
+      <div class="modal-card">
+        <h2 id="peer-modal-alias">主机</h2>
+        <dl class="modal-facts">
+          <div><dt>名称</dt><dd id="peer-fact-alias"></dd></div>
+          <div><dt>内网 IP</dt><dd id="peer-fact-ip"></dd></div>
+          <div><dt>端口</dt><dd id="peer-fact-port"></dd></div>
+          <div><dt>HTTPS</dt><dd id="peer-fact-tls"></dd></div>
+        </dl>
+        <p class="modal-status" id="peer-modal-status"></p>
+        <button type="button" class="fill" id="peer-modal-link">建立发送链接</button>
+        <button type="button" class="fill" id="send-pick-files" hidden>选择照片和视频</button>
+        <button type="button" class="text" id="peer-modal-close">取消</button>
+      </div>
+    </div>
 
     <section class="sheet" id="settings" hidden>
       <h2>设置</h2>
@@ -202,7 +223,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=send3"></script>
-  <script src="live.js?v=send3"></script>
+  <script src="app.js?v=send4"></script>
+  <script src="live.js?v=send4"></script>
 </body>
 </html>

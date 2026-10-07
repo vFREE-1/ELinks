@@ -30,6 +30,7 @@ const CLIENT_MJS = new Set(["slice.mjs", "send.mjs", "usb-path.mjs", "resume.mjs
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
 const sessions = new Map();
+const linkReqs = new Map();
 const transfers = new Map();
 const done = [];
 let httpsReady = false;
@@ -273,6 +274,30 @@ function sessionRec(id) {
   const rec = sessions.get(id);
   if (!rec || rec.cancelled) return null;
   return rec;
+}
+
+function expireLinks() {
+  const now = Date.now();
+  linkReqs.forEach((row, id) => {
+    if (row.status === "pending" && now - row.t > 60000) row.status = "expired";
+    if (now - row.t > 120000) linkReqs.delete(id);
+  });
+}
+
+function publicLink(row) {
+  return {
+    id: row.id,
+    alias: row.alias,
+    host: row.host,
+    port: row.port,
+    status: row.status,
+    at: row.t
+  };
+}
+
+function pendingLinks() {
+  expireLinks();
+  return [...linkReqs.values()].filter((row) => row.status === "pending").map(publicLink);
 }
 
 function mapFile(part) {
@@ -620,7 +645,8 @@ async function handleRequest(req, res) {
         discover: Boolean(discoverHub),
         discoverPort: DISCOVER_PORT,
         alias: cfg.alias,
-        discoverable: cfg.discoverable !== false
+        discoverable: cfg.discoverable !== false,
+        link: true
       });
       return;
     }
@@ -665,9 +691,12 @@ async function handleRequest(req, res) {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/transfers") {
+      expireLinks();
+      const local = isLoopbackAddress(req.socket.remoteAddress);
       sendJson(res, {
         active: [...transfers.values()].map(publicTransfer),
-        done: done.slice(-20)
+        done: done.slice(-20),
+        pendingLinks: local ? pendingLinks() : []
       });
       return;
     }
@@ -743,6 +772,64 @@ async function handleRequest(req, res) {
       const session = crypto.randomBytes(12).toString("base64url");
       sessions.set(session, { t: Date.now(), cancelled: false });
       sendJson(res, { ok: true, session });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/link") {
+      const incoming = await readJson(req);
+      if (String(incoming.token || "") !== pairToken) {
+        sendJson(res, { ok: false, error: "bad token" }, 403);
+        return;
+      }
+      expireLinks();
+      const id = crypto.randomBytes(12).toString("base64url");
+      const row = {
+        id,
+        alias: cleanAlias(incoming.alias),
+        host: String(incoming.host || "").trim(),
+        port: Number(incoming.port) || PORT,
+        status: "pending",
+        session: "",
+        t: Date.now()
+      };
+      linkReqs.set(id, row);
+      sendJson(res, { ok: true, id, status: "pending" });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/link-status") {
+      expireLinks();
+      const id = String(url.searchParams.get("id") || "");
+      const row = linkReqs.get(id);
+      if (!row) {
+        sendJson(res, { ok: false, error: "no link" }, 404);
+        return;
+      }
+      const payload = { ok: true, id: row.id, status: row.status };
+      if (row.status === "accepted" && row.session) payload.session = row.session;
+      sendJson(res, payload);
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/link-respond") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      const incoming = await readJson(req);
+      expireLinks();
+      const row = linkReqs.get(String(incoming.id || ""));
+      if (!row || row.status !== "pending") {
+        sendJson(res, { ok: false, error: "no link" }, 404);
+        return;
+      }
+      if (incoming.allow === true) {
+        const session = crypto.randomBytes(12).toString("base64url");
+        sessions.set(session, { t: Date.now(), cancelled: false });
+        row.session = session;
+        row.status = "accepted";
+        sendJson(res, { ok: true, id: row.id, status: "accepted" });
+        return;
+      }
+      row.status = "denied";
+      sendJson(res, { ok: true, id: row.id, status: "denied" });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/resume") {

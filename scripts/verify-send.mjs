@@ -82,10 +82,14 @@ if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw 
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
 if (!index.includes('id="alias-name"') || !index.includes('id="discover-toggle"')) throw new Error("alias/discover settings missing");
 if (!index.includes('id="send-pick-files"')) throw new Error("send picker missing");
+if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");
+if (!index.includes('id="tab-link"') || !index.includes("允许建立")) throw new Error("receiver allow/deny tab missing");
+if (!index.includes("点一台电脑，发给它")) throw new Error("send hint missing");
 
 const live = fs.readFileSync(path.join(ROOT, "live.js"), "utf8");
 if (!live.includes("function setDeskMode")) throw new Error("desk mode switch missing");
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
+if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
 
 const snapshot = await json("GET", "/api/info");
 if (typeof snapshot.alias !== "string" || !snapshot.alias.trim()) throw new Error("info.alias missing");
@@ -113,6 +117,42 @@ try {
   if (!beacon) throw new Error("discoverable on should reply to probe");
   if (beacon.alias !== "VerifyBox") throw new Error("beacon alias should follow config");
   if (!beacon.token || beacon.token !== snapshot.token) throw new Error("beacon token missing");
+
+  const badLink = await request("POST", "/api/link", Buffer.from(JSON.stringify({ token: "nope", alias: "X", host: "127.0.0.1" })), { json: true });
+  if (badLink.status !== 403) throw new Error("link without token should fail");
+
+  const pending = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "SenderBox",
+    host: "127.0.0.1",
+    port: 8730
+  })), { json: true });
+  if (!pending.json.ok || !pending.json.id || pending.json.status !== "pending") throw new Error("link request should stay pending");
+
+  const listed = await json("GET", "/api/transfers");
+  if (!Array.isArray(listed.pendingLinks) || !listed.pendingLinks.some((row) => row.id === pending.json.id)) {
+    throw new Error("pending link should appear for the receiver");
+  }
+
+  const denied = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "DeniedBox",
+    host: "127.0.0.1"
+  })), { json: true });
+  const denyRes = await request("POST", "/api/link-respond", Buffer.from(JSON.stringify({ id: denied.json.id, allow: false })), { json: true });
+  if (denyRes.json.status !== "denied") throw new Error("deny should mark the link denied");
+  const denySt = await json("GET", "/api/link-status?id=" + encodeURIComponent(denied.json.id));
+  if (denySt.status !== "denied" || denySt.session) throw new Error("denied link must not yield a session");
+
+  const accepted = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "AllowBox",
+    host: "127.0.0.1"
+  })), { json: true });
+  const allowRes = await request("POST", "/api/link-respond", Buffer.from(JSON.stringify({ id: accepted.json.id, allow: true })), { json: true });
+  if (allowRes.json.status !== "accepted") throw new Error("allow should accept the link");
+  const allowSt = await json("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
+  if (allowSt.status !== "accepted" || !allowSt.session) throw new Error("accepted link should yield a session");
 } finally {
   await json("POST", "/api/config", { alias: snapshot.alias, discoverable: true });
 }

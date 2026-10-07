@@ -109,18 +109,28 @@ function setWaitTab(id) {
 
 function setDeskMode(mode) {
   const send = mode === "send";
+  const link = mode === "link";
   const tabRecv = $("tab-recv");
   const tabSend = $("tab-send");
+  const tabLink = $("tab-link");
   const modeRecv = $("mode-recv");
   const modeSend = $("mode-send");
+  const modeLink = $("mode-link");
   if (!tabRecv || !tabSend || !modeRecv || !modeSend) return;
-  tabRecv.setAttribute("aria-selected", send ? "false" : "true");
+  tabRecv.setAttribute("aria-selected", !send && !link ? "true" : "false");
   tabSend.setAttribute("aria-selected", send ? "true" : "false");
-  modeRecv.hidden = send;
+  if (tabLink) tabLink.setAttribute("aria-selected", link ? "true" : "false");
+  modeRecv.hidden = send || link;
   modeSend.hidden = !send;
+  if (modeLink) modeLink.hidden = !link;
   document.documentElement.classList.toggle("is-send", send);
-  if ($("brand-sub")) $("brand-sub").textContent = send ? "传到附近" : "桌面接收";
-  if ($("stage")) $("stage").setAttribute("aria-label", send ? "传到附近电脑" : "等待接收");
+  document.documentElement.classList.toggle("is-link", link);
+  if ($("brand-sub")) {
+    $("brand-sub").textContent = link ? "连接请求" : send ? "传到附近" : "桌面接收";
+  }
+  if ($("stage")) {
+    $("stage").setAttribute("aria-label", link ? "连接请求" : send ? "传到附近电脑" : "等待接收");
+  }
   if (send) startUniverse();
   else stopUniverse();
   requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
@@ -128,6 +138,7 @@ function setDeskMode(mode) {
 
 $("tab-recv").addEventListener("click", function () { setDeskMode("recv"); });
 $("tab-send").addEventListener("click", function () { setDeskMode("send"); });
+if ($("tab-link")) $("tab-link").addEventListener("click", function () { setDeskMode("link"); });
 
 function showPageQr() {
   qrMode = "page";
@@ -521,7 +532,10 @@ function renderOrbs(peers) {
     node.remove();
     orbNodes.delete(host);
   });
-  if (empty) empty.hidden = seen.size > 0;
+  if (empty) {
+    empty.hidden = false;
+    empty.textContent = seen.size ? "点一台电脑，发给它" : "附近没有其他电脑";
+  }
 }
 
 async function refreshUniverse() {
@@ -546,74 +560,119 @@ function stopUniverse() {
   universeTimer = 0;
 }
 
-function resetSendTarget() {
-  outboundPeer = null;
+let outboundLinkId = "";
+let linkPollTimer = 0;
+let currentIncomingId = "";
+const seenLinkIds = new Set();
+
+function peerBase(peer) {
+  return "http://" + peer.host + ":" + (Number(peer.port) || 8730);
+}
+
+function stopLinkPoll() {
+  if (!linkPollTimer) return;
+  clearInterval(linkPollTimer);
+  linkPollTimer = 0;
+}
+
+function setModalStatus(text) {
+  if ($("peer-modal-status")) $("peer-modal-status").textContent = text || "";
+}
+
+function closePeerModal() {
+  stopLinkPoll();
+  outboundLinkId = "";
+  if ($("peer-modal")) $("peer-modal").hidden = true;
+  if ($("peer-modal-link")) $("peer-modal-link").hidden = false;
+  if ($("send-pick-files")) $("send-pick-files").hidden = true;
+  setModalStatus("");
+}
+
+function openPeerModal(peer) {
+  outboundPeer = peer;
   outboundSession = "";
   outboundBase = "";
-  if ($("send-target")) $("send-target").hidden = true;
-  if ($("send-pass-block")) $("send-pass-block").hidden = true;
-  if ($("peer-password")) $("peer-password").value = "";
-  if ($("peer-pass-error")) $("peer-pass-error").hidden = true;
+  outboundLinkId = "";
+  stopLinkPoll();
+  const alias = peer.alias || peer.host || "未命名";
+  if ($("peer-modal-alias")) $("peer-modal-alias").textContent = alias;
+  if ($("peer-fact-alias")) $("peer-fact-alias").textContent = alias;
+  if ($("peer-fact-ip")) $("peer-fact-ip").textContent = peer.host || "—";
+  if ($("peer-fact-port")) $("peer-fact-port").textContent = String(peer.port || 8730);
+  if ($("peer-fact-tls")) {
+    $("peer-fact-tls").textContent = peer.httpsPort ? String(peer.httpsPort) : "无";
+  }
+  if ($("peer-modal-link")) {
+    $("peer-modal-link").hidden = false;
+    $("peer-modal-link").disabled = false;
+  }
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
-  if ($("send-peer-lead")) {
-    $("send-peer-lead").hidden = true;
-    $("send-peer-lead").textContent = "";
-  }
-  if ($("send-bar-name")) $("send-bar-name").hidden = true;
+  setModalStatus("确认是这台电脑后，建立发送链接。对方允许后才能选文件。");
+  if ($("peer-modal")) $("peer-modal").hidden = false;
 }
 
-function showSendBar(peer, message) {
-  outboundPeer = peer;
-  if ($("send-peer-name")) $("send-peer-name").textContent = peer.alias || peer.host;
-  if ($("send-bar-name")) $("send-bar-name").hidden = !peer;
-  if ($("send-target")) $("send-target").hidden = false;
-  if ($("send-peer-lead")) {
-    $("send-peer-lead").textContent = message || "";
-    $("send-peer-lead").hidden = !message;
+function applyLinkStatus(data) {
+  if (!data || !data.ok) return;
+  if (data.status === "pending") {
+    setModalStatus("已发出请求，等待对方允许…");
+    return;
+  }
+  if (data.status === "denied" || data.status === "expired") {
+    stopLinkPoll();
+    if ($("peer-modal-link")) $("peer-modal-link").hidden = false;
+    setModalStatus(data.status === "denied" ? "对方拒绝了这次连接。" : "对方没有回应。");
+    return;
+  }
+  if (data.status === "accepted" && data.session) {
+    stopLinkPoll();
+    outboundSession = data.session;
+    outboundBase = peerBase(outboundPeer);
+    if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
+    if ($("send-pick-files")) $("send-pick-files").hidden = false;
+    setModalStatus("对方已允许。现在可以选文件发送。");
   }
 }
 
-async function connectPeer(password) {
+async function requestLink() {
   const peer = outboundPeer;
-  if (!peer) return false;
+  if (!peer) return;
   if (!peer.token) {
-    showSendBar(peer, "这台电脑还不能这样传");
-    if ($("send-pick-files")) $("send-pick-files").hidden = true;
-    return false;
+    setModalStatus("这台电脑还不能这样传。");
+    return;
   }
-  const base = "http://" + peer.host + ":" + (Number(peer.port) || 8730);
+  const base = peerBase(peer);
+  const selfHost = info && info.host ? String(info.host).split(":")[0] : "";
+  $("peer-modal-link").disabled = true;
+  setModalStatus("正在请求对方允许…");
   try {
-    const res = await fetch(base + "/api/pair", {
+    const res = await fetch(base + "/api/link", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: peer.token, password: password || "" })
+      body: JSON.stringify({
+        token: peer.token,
+        alias: (info && info.alias) || "",
+        host: selfHost,
+        port: 8730
+      })
     });
     const data = await res.json();
-    $("peer-pass-error").hidden = true;
-    if (data.needPassword) {
-      showSendBar(peer, "");
-      $("send-pass-block").hidden = false;
-      $("send-pick-files").hidden = true;
-      $("peer-password").focus();
-      return false;
+    if (!data.ok || !data.id) {
+      $("peer-modal-link").disabled = false;
+      setModalStatus("打不开这台电脑。");
+      return;
     }
-    if (!data.ok) {
-      showSendBar(peer, "密码不正确");
-      $("peer-pass-error").hidden = false;
-      $("send-pass-block").hidden = false;
-      $("send-pick-files").hidden = true;
-      return false;
-    }
-    outboundSession = data.session;
-    outboundBase = base;
-    $("send-target").hidden = true;
-    $("send-pass-block").hidden = true;
-    $("send-pick-files").hidden = true;
-    return true;
+    outboundLinkId = data.id;
+    applyLinkStatus(data);
+    stopLinkPoll();
+    linkPollTimer = setInterval(function () {
+      fetch(base + "/api/link-status?id=" + encodeURIComponent(outboundLinkId))
+        .then(function (res) { return res.json(); })
+        .then(applyLinkStatus)
+        .catch(function () {});
+    }, 400);
   } catch (err) {
-    showSendBar(peer, "打不开这台电脑");
-    if ($("send-pick-files")) $("send-pick-files").hidden = true;
-    return false;
+    $("peer-modal-link").disabled = false;
+    setModalStatus("打不开这台电脑。");
   }
 }
 
@@ -621,18 +680,50 @@ function choosePeer(host) {
   const node = orbNodes.get(host);
   const peer = node && node._peer;
   if (!peer) return;
-  outboundPeer = peer;
-  outboundSession = "";
-  outboundBase = "";
-  if ($("send-peer-name")) $("send-peer-name").textContent = peer.alias || peer.host;
-  connectPeer("").then(function (ok) {
-    if (ok) $("file-input").click();
-  });
+  openPeerModal(peer);
+}
+
+function showIncomingLink(row) {
+  currentIncomingId = row && row.id ? row.id : "";
+  const has = Boolean(currentIncomingId);
+  if ($("link-empty")) $("link-empty").hidden = has;
+  if ($("link-detail")) $("link-detail").hidden = !has;
+  if (!has) return;
+  if ($("link-alias")) $("link-alias").textContent = row.alias || "未命名";
+  if ($("link-host")) $("link-host").textContent = row.host || "—";
+  if ($("link-port")) $("link-port").textContent = String(row.port || 8730);
+}
+
+function showLinkTab(pending) {
+  const tab = $("tab-link");
+  if (!tab) return;
+  const list = pending || [];
+  tab.hidden = list.length === 0;
+  if (!list.length) {
+    showIncomingLink(null);
+    if (document.documentElement.classList.contains("is-link")) setDeskMode("recv");
+    return;
+  }
+  const fresh = list.filter(function (row) { return !seenLinkIds.has(row.id); });
+  list.forEach(function (row) { seenLinkIds.add(row.id); });
+  showIncomingLink(list[0]);
+  if (fresh.length) setDeskMode("link");
+}
+
+function respondLink(allow) {
+  if (!currentIncomingId) return;
+  fetch("/api/link-respond", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: currentIncomingId, allow: allow })
+  }).then(function (res) { return res.json(); }).then(function (data) {
+    if (data && data.ok && allow) setDeskMode("recv");
+  }).catch(function () {});
 }
 
 function setBusyDirection(kind) {
   const sending = kind === "send";
-  const name = ($("send-peer-name") && $("send-peer-name").textContent) || "附近电脑";
+  const name = (outboundPeer && (outboundPeer.alias || outboundPeer.host)) || "附近电脑";
   if ($("busy-live-title")) $("busy-live-title").textContent = sending ? "正在发送" : "正在接收";
   if ($("busy-done-title")) $("busy-done-title").textContent = "已完成";
   if ($("busy-done-note")) $("busy-done-note").textContent = sending ? ("发到 " + name) : "保存在接收目录";
@@ -682,6 +773,7 @@ function renderOutbound(items) {
 }
 
 function startOutbound(files) {
+  closePeerModal();
   outboundActive = true;
   setBusyDirection("send");
   LINKS.setMode(true);
@@ -705,28 +797,25 @@ $("pick-files").addEventListener("click", function () {
 
 if ($("send-pick-files")) {
   $("send-pick-files").addEventListener("click", function () {
-    if (!outboundSession) {
-      connectPeer($("peer-password") ? $("peer-password").value : "").then(function (ok) {
-        if (ok) $("file-input").click();
-      });
-      return;
-    }
+    if (!outboundSession || !outboundBase) return;
     $("file-input").click();
   });
 }
 
-if ($("send-back")) {
-  $("send-back").addEventListener("click", function () {
-    resetSendTarget();
-  });
+if ($("peer-modal-link")) {
+  $("peer-modal-link").addEventListener("click", function () { requestLink(); });
 }
 
-if ($("peer-pass-go")) {
-  $("peer-pass-go").addEventListener("click", function () {
-    connectPeer($("peer-password").value).then(function (ok) {
-      if (ok) $("file-input").click();
-    });
-  });
+if ($("peer-modal-close")) {
+  $("peer-modal-close").addEventListener("click", function () { closePeerModal(); });
+}
+
+if ($("link-allow")) {
+  $("link-allow").addEventListener("click", function () { respondLink(true); });
+}
+
+if ($("link-deny")) {
+  $("link-deny").addEventListener("click", function () { respondLink(false); });
 }
 
 $("file-input").addEventListener("change", function () {
@@ -780,8 +869,10 @@ function fillRow(node, item) {
 }
 
 async function pollTransfers() {
-  if (!LIVE || outboundActive) return;
+  if (!LIVE) return;
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
+  showLinkTab(data.pendingLinks || []);
+  if (outboundActive) return;
   const live = $("live-list");
   live.innerHTML = "";
   let used = 0;
