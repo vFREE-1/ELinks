@@ -1510,14 +1510,44 @@ html.is-phone #open-dir { display: none; }
   transform: translateX(16px);
 }
 
+.sheet-extra {
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.sheet-extra .text {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: var(--tracking-ui);
+}
+
+.sheet-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  letter-spacing: var(--tracking-ui);
+}
+
+.sheet #close-settings {
+  display: block;
+  margin: 14px 0 0;
+  font-size: 13px;
+}
+
 .update-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: var(--tracking-ui);
 }
 
@@ -1526,17 +1556,18 @@ html.is-phone #open-dir { display: none; }
   font-weight: 600;
 }
 
+.update-row .text {
+  font-size: 11px;
+}
+
 .update-status {
-  margin: 8px 0 0;
-  min-height: 1.4em;
+  margin: 6px 0 0;
+  min-height: 1.2em;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .update-status a { color: var(--blue); }
-
-.sheet #open-hotspot {
-  display: block;
-  margin: 8px 0 12px;
-}
 
 .phone {
   display: none;

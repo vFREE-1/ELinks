@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send22" />
+  <link rel="stylesheet" href="styles.css?v=send23" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -170,15 +170,17 @@
         <span>背景动画</span>
         <button type="button" class="switch on" id="rings-toggle" role="switch" aria-checked="true" aria-label="背景动画"></button>
       </div>
+      <div class="sheet-extra">
+        <button type="button" class="text" id="settings-allow-lan">允许防火墙通过</button>
+        <button type="button" class="text" id="open-hotspot">打开电脑热点设置</button>
+        <p class="sheet-hint">插数据线后，在手机上打开 USB 网络共享。选照片仍在手机网页里完成，文件会优先走这条线，不用在电脑上翻手机文件夹。</p>
+      </div>
+      <button type="button" class="text" id="close-settings">完成</button>
       <div class="update-row">
         <span>版本 <b id="app-version">0.1.0</b></span>
         <button type="button" class="text" id="check-update">检查更新</button>
       </div>
       <p class="update-status" id="update-status"></p>
-      <button type="button" class="text" id="settings-allow-lan">允许防火墙通过</button>
-      <button type="button" class="text" id="open-hotspot">打开电脑热点设置</button>
-      <p>插数据线后，在手机上打开 USB 网络共享。选照片仍在手机网页里完成，文件会优先走这条线，不用在电脑上翻手机文件夹。</p>
-      <button type="button" class="text" id="close-settings">完成</button>
     </section>
 
     <section class="phone" aria-label="手机连接">

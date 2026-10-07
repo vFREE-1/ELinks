@@ -389,6 +389,8 @@ try {
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }
   if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }
   if ($index -notmatch 'id="open-hotspot"') { throw "hotspot settings control missing" }
+  if ($index -notmatch 'id="close-settings"[\s\S]{0,400}id="app-version"') { throw "settings version must sit at the bottom of the sheet" }
+  if ($index -notmatch 'class="sheet-hint"') { throw "usb hint in settings must use the quieter caption style" }
   $allow = Get-Content -LiteralPath (Join-Path $RootFull "scripts\allow-lan.ps1") -Raw
   if ($allow -notmatch 'Elinks receiver 8730') { throw "allow-lan script must name the firewall rule" }
   if ($allow -notmatch '-Profile Any') { throw "allow-lan script must cover public profiles" }
@@ -418,6 +420,9 @@ try {
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw
   if ($css -notmatch '\.modal-facts \{[\s\S]{0,180}grid-template-columns:\s*1fr 1fr') { throw "peer facts should sit two-up" }
   if ($css -notmatch '\.modal-actions') { throw "peer modal 移除 and 取消 must sit on one row" }
+  if ($css -notmatch '\.sheet-hint \{[\s\S]{0,120}font-size:\s*11px') { throw "settings usb hint must stay smaller than body copy" }
+  if ($css -notmatch '\.sheet-extra \.text \{[\s\S]{0,160}font-size:\s*12px') { throw "settings extra links must stay at 12px" }
+  if ($css -notmatch '\.update-row \{[\s\S]{0,220}font-size:\s*11px') { throw "settings version footer must stay small" }
   if ($css -match 'html\.is-busy #mode[\s\S]{0,160}background:\s*#1f6feb') { throw "return-to-receive should use text color, not a filled background" }
   if ($css -notmatch '--tracking-display') { throw "display tracking token missing" }
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
