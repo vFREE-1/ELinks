@@ -19,6 +19,12 @@ try {
   Get-NetFirewallRule -DisplayName "Elinks receiver 8730" -ErrorAction SilentlyContinue |
     Remove-NetFirewallRule -ErrorAction SilentlyContinue
   New-NetFirewallRule -DisplayName "Elinks receiver 8730" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8730 -Profile Any -ErrorAction Stop | Out-Null
+  Get-NetFirewallRule -DisplayName "Elinks receiver 8731" -ErrorAction SilentlyContinue |
+    Remove-NetFirewallRule -ErrorAction SilentlyContinue
+  New-NetFirewallRule -DisplayName "Elinks receiver 8731" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8731 -Profile Any -ErrorAction SilentlyContinue | Out-Null
+  Get-NetFirewallRule -DisplayName "Elinks discover 8732" -ErrorAction SilentlyContinue |
+    Remove-NetFirewallRule -ErrorAction SilentlyContinue
+  New-NetFirewallRule -DisplayName "Elinks discover 8732" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 8732 -Profile Any -ErrorAction SilentlyContinue | Out-Null
 
   Get-NetFirewallRule -Direction Inbound -Action Block -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -match "Node\.js|Electron|Elinks" } |

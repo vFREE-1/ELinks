@@ -1065,6 +1065,11 @@ html.phone-page body {
 
 .phone-send { margin-top: 4px; }
 
+.phone-send #send-stop {
+  display: block;
+  margin: 14px 0 0;
+}
+
 .phone-send #send-lead {
   margin: 0 0 10px;
   font-size: 20px;

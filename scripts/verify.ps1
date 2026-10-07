@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -63,6 +63,8 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'usbHost') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'wifiHost') { $needStart = $true }
   if ($peek.phoneUrl -notmatch 'phone.html') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'httpsPort') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'discoverPort') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -102,6 +104,10 @@ try {
   if ($info.usb -isnot [bool]) { throw "info.usb must be a boolean" }
   if ($info.usbHost -isnot [string]) { throw "info.usbHost must be a string" }
   if ($info.wifiHost -isnot [string]) { throw "info.wifiHost must be a string" }
+  if ($info.tls -isnot [bool]) { throw "info.tls must be a boolean" }
+  if ([int]$info.httpsPort -ne 8731) { throw "https port should be 8731" }
+  if ([int]$info.discoverPort -ne 8732) { throw "discover port should be 8732" }
+  if ($info.httpsUrl -notmatch '^https://') { throw "httpsUrl must be https" }
   if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
   if ($info.usb -and $info.path -ne "usb") { throw "usb linked must prefer the usb path" }
   if (-not $info.usb -and $info.path -ne "wifi") { throw "no usb must stay on wifi path" }
@@ -137,6 +143,9 @@ try {
   node (Join-Path $RootFull "scripts\verify-phone.mjs")
   if ($LASTEXITCODE -ne 0) { throw "phone verify failed" }
 
+  node (Join-Path $RootFull "scripts\verify-resume.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "resume verify failed" }
+
   node (Join-Path $RootFull "scripts\verify-update.mjs")
   if ($LASTEXITCODE -ne 0) { throw "update verify failed" }
   $updSrc = Get-Content -LiteralPath (Join-Path $RootFull "update.mjs") -Raw
@@ -161,6 +170,7 @@ try {
   if ($phonePage.Content -notmatch 'id="file-input"') { throw "phone page must expose the file input" }
   if ($phonePage.Content -notmatch 'pick-entry') { throw "phone page must use a dedicated upload entry" }
   if ($phonePage.Content -notmatch 'id="file-more"') { throw "phone page must keep a second pick entry after sending" }
+  if ($phonePage.Content -notmatch 'id="send-stop"') { throw "phone page must be able to cancel the session" }
   if ($phonePage.Content -match 'id="qr"') { throw "phone page must not include the waiting qr" }
   if ($phonePage.Content -match 'id="allow-lan"') { throw "phone page must not include allow-lan" }
   if ($phonePage.Content -match 'id="join-wifi"') { throw "phone page must not include wifi join" }
@@ -173,6 +183,9 @@ try {
   if ($usbMod.Content -notmatch 'shouldSwitchToUsb') { throw "usb-path.mjs must decide when to leave wifi" }
   if ($sendMod.Content -notmatch 'XMLHttpRequest') { throw "phone upload must use XHR so progress can move while sending" }
   if ($sendMod.Content -notmatch 'upload.onprogress') { throw "phone upload must listen to upload progress" }
+  if ($sendMod.Content -notmatch 'missingSlices') { throw "uploader must skip slices already on disk" }
+  $resumeMod = Invoke-WebRequest -Uri "http://127.0.0.1:8730/resume.mjs" -UseBasicParsing
+  if ($resumeMod.StatusCode -ne 200) { throw "resume.mjs must be reachable from the phone page" }
   $blockedMjs = $false
   try {
     Invoke-WebRequest -Uri "http://127.0.0.1:8730/server.mjs" -UseBasicParsing | Out-Null
@@ -209,6 +222,9 @@ try {
 
   node (Join-Path $RootFull "scripts\verify-parallel.mjs")
   if ($LASTEXITCODE -ne 0) { throw "parallel verify failed" }
+
+  node (Join-Path $RootFull "scripts\verify-protocol.mjs")
+  if ($LASTEXITCODE -ne 0) { throw "protocol verify failed" }
 
   $passCfg = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/config" -Method POST -ContentType "application/json" -Body (@{ savePath = $Received; password = "vtest"; rings = $false } | ConvertTo-Json)
   if (-not $passCfg.passwordSet) { throw "passwordSet should be true after setting a password" }
@@ -316,13 +332,19 @@ try {
   if ($phoneJs -notmatch 'sendFiles') { throw "phone page must send through the shared uploader" }
   if ($phoneJs -notmatch 'shouldSwitchToUsb') { throw "phone page must follow the usb address when the cable is up" }
   if ($phoneJs -notmatch 'usb-path') { throw "phone page must load the usb switch helper" }
+  if ($phoneJs -notmatch 'cancelSend') { throw "phone page must cancel in-flight uploads" }
+  if ($phoneJs -notmatch '/api/cancel') { throw "phone page must tell the receiver to drop the session" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
   if ($mainSrv -notmatch 'usb-path.mjs') { throw "usb-path.mjs must be on the client allow list" }
   $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw
   if ($sliceSrc -notmatch '512 \* 1024') { throw "iphone slices must stay small so the first bytes leave sooner" }
   if ($mainSrv -match 'write\(Buffer.alloc\(1\)') { throw "part file must not punch a byte at EOF" }
   if ($mainSrv -notmatch 'created.truncate\(size\)') { throw "part file should truncate to size" }
-  if ($mainSrv -notmatch 'item.received = Math.min\(size, item.received \+ n\)') { throw "received must move as bytes arrive" }
+  if ($mainSrv -notmatch 'rangeBytes\(item.ranges\)') { throw "received must follow completed ranges" }
+  if ($mainSrv -notmatch '/api/resume') { throw "receiver must answer resume queries" }
+  if ($mainSrv -notmatch '/api/cancel') { throw "receiver must cancel a session" }
+  if ($mainSrv -notmatch 'HTTPS_PORT') { throw "receiver must listen on https" }
+  if ($mainSrv -notmatch 'startDiscover') { throw "receiver must announce itself on the lan" }
   $electron = Join-Path $RootFull "node_modules\.bin\electron.cmd"
   if (-not (Test-Path -LiteralPath $electron)) { throw "electron binary missing; run npm install" }
   Push-Location $RootFull

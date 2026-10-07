@@ -1,4 +1,4 @@
-import { sendFiles } from "./send.mjs";
+import { cancelSend, sendFiles } from "./send.mjs";
 import { shouldSwitchToUsb } from "./usb-path.mjs";
 
 function $(id) {
@@ -72,9 +72,11 @@ function paint(items) {
     row.className = "phone-row";
     row.innerHTML = "<b></b><span></span><div class=\"line\"><i></i></div>";
     row.querySelector("b").textContent = item.name;
-    row.querySelector("span").textContent = item.error
-      ? "没传上，请再选一次"
-      : (item.done ? "已传到电脑" : formatSize(item.sent) + " / " + formatSize(item.size));
+    row.querySelector("span").textContent = item.error === "cancelled"
+      ? "已停止"
+      : (item.error
+        ? "没传上，请再选一次"
+        : (item.done ? "已传到电脑" : formatSize(item.sent) + " / " + formatSize(item.size)));
     row.querySelector("i").style.width = (Math.min(1, ratio) * 100).toFixed(1) + "%";
     box.appendChild(row);
   });
@@ -99,6 +101,7 @@ function queueFiles(list) {
   sending = true;
   $("pick").hidden = true;
   $("send").hidden = false;
+  if ($("send-stop")) $("send-stop").hidden = false;
   setStatus("已经开始传，不用等相册先读完。");
   sendFiles(files, {
     session: sessionId,
@@ -112,14 +115,28 @@ function queueFiles(list) {
     }
   }).then(function (items) {
     sending = false;
+    if ($("send-stop")) $("send-stop").hidden = true;
     paint(items);
-    setStatus(items.some(function (item) { return item.error; }) ? "有的没传上，可以再选一次。" : "可以继续选。");
+    const stopped = items.some(function (item) { return item.error === "cancelled"; });
+    const failed = items.some(function (item) { return item.error && item.error !== "cancelled"; });
+    setStatus(stopped ? "已经停止。可以再选一次。" : (failed ? "有的没传上，可以再选一次。" : "可以继续选。"));
     watchPath();
   }).catch(function () {
     sending = false;
+    if ($("send-stop")) $("send-stop").hidden = true;
     setStatus("这次没传上，请再选一次。");
     watchPath();
   });
+}
+
+function stopSend() {
+  cancelSend();
+  if (!sessionId) return;
+  fetch("/api/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session: sessionId })
+  }).catch(function () {});
 }
 
 function followUsb(data) {
@@ -157,6 +174,16 @@ $("file-more").addEventListener("change", function () {
   const files = $("file-more").files;
   $("file-more").value = "";
   queueFiles(files);
+});
+
+if ($("send-stop")) {
+  $("send-stop").addEventListener("click", function () {
+    stopSend();
+  });
+}
+
+window.addEventListener("pagehide", function () {
+  if (sending) stopSend();
 });
 
 async function boot() {

@@ -1,4 +1,5 @@
 import http from "node:http";
+import https from "node:https";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
@@ -14,6 +15,9 @@ import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
 import { parseAllowResult, parseReachProbe, pickHosts } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
+import { mergeRanges, rangeBytes } from "./resume.mjs";
+import { HTTPS_PORT, ensureTls } from "./tls.mjs";
+import { DISCOVER_PORT, startDiscover } from "./discover.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(ROOT, "data");
@@ -22,12 +26,14 @@ const DEFAULT_SAVE = path.join(ROOT, "received");
 const execFileAsync = promisify(execFile);
 const PORT = 8730;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".mjs", ".svg", ".png", ".ico"]);
-const CLIENT_MJS = new Set(["slice.mjs", "send.mjs", "usb-path.mjs"]);
+const CLIENT_MJS = new Set(["slice.mjs", "send.mjs", "usb-path.mjs", "resume.mjs"]);
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
 const sessions = new Map();
 const transfers = new Map();
 const done = [];
+let httpsReady = false;
+let discoverHub = null;
 const fileLocks = new Map();
 const stats = { inflight: 0, maxInflight: 0, bytes: 0 };
 
@@ -251,6 +257,30 @@ function safeName(name) {
   return base.slice(0, 180);
 }
 
+function sessionRec(id) {
+  const rec = sessions.get(id);
+  if (!rec || rec.cancelled) return null;
+  return rec;
+}
+
+function mapFile(part) {
+  return part + ".map";
+}
+
+function loadMap(part) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(mapFile(part), "utf8"));
+    return mergeRanges(raw.ranges);
+  } catch {
+    return [];
+  }
+}
+
+function saveMap(item) {
+  if (!item || !item.part) return;
+  fs.writeFileSync(mapFile(item.part), JSON.stringify({ size: item.size, ranges: item.ranges || [] }), "utf8");
+}
+
 function uniqueDest(root, name) {
   let dest = path.join(root, name);
   let part = dest + ".part";
@@ -259,7 +289,7 @@ function uniqueDest(root, name) {
   let i = 1;
   for (;;) {
     const candidate = path.join(root, `${parsed.name}_${i}${parsed.ext}`);
-    if (!fs.existsSync(candidate)) return candidate;
+    if (!fs.existsSync(candidate) && !fs.existsSync(candidate + ".part")) return candidate;
     i += 1;
   }
 }
@@ -374,10 +404,33 @@ async function serveStatic(res, urlPath) {
   res.end(data);
 }
 
+async function cancelSession(session) {
+  const rec = sessions.get(session);
+  if (!rec) return { ok: false, error: "no session" };
+  rec.cancelled = true;
+  const gone = [];
+  for (const [key, item] of transfers) {
+    if (!String(key).startsWith(session + ":") || item.finalized) continue;
+    gone.push(item);
+    transfers.delete(key);
+  }
+  gone.forEach((item) => {
+    if (item.reqs) item.reqs.forEach((sock) => {
+      try { sock.destroy(); } catch { /* ignore */ }
+    });
+    try { if (item.part && inside(saveRoot(), item.part)) fs.unlinkSync(item.part); } catch { /* ignore */ }
+    try {
+      const map = item.part ? mapFile(item.part) : "";
+      if (map && inside(saveRoot(), map)) fs.unlinkSync(map);
+    } catch { /* ignore */ }
+  });
+  return { ok: true };
+}
+
 async function handleUpload(req, res, url) {
   const session = url.searchParams.get("session") || req.headers["x-session"] || "";
-  if (!sessions.has(session)) {
-    sendJson(res, { ok: false, error: "no session" }, 403);
+  if (!sessionRec(session)) {
+    sendJson(res, { ok: false, error: sessions.get(session) && sessions.get(session).cancelled ? "cancelled" : "no session" }, sessions.get(session) ? 409 : 403);
     return;
   }
   let name;
@@ -403,20 +456,34 @@ async function handleUpload(req, res, url) {
     await withLock(`xfer:${key}`, async () => {
       item = transfers.get(key);
       if (item) return;
-      const dest = uniqueDest(root, name);
+      const destNamed = path.join(root, name);
+      const partNamed = destNamed + ".part";
+      let dest;
+      let part;
+      let ranges = [];
+      if (fs.existsSync(partNamed) && !fs.existsSync(destNamed)) {
+        dest = destNamed;
+        part = partNamed;
+        ranges = loadMap(part);
+      } else {
+        dest = uniqueDest(root, name);
+        part = dest + ".part";
+      }
       if (!inside(root, dest)) throw new Error("path");
     item = {
       id: key,
       name: path.basename(dest),
       size,
-      received: 0,
+      received: rangeBytes(ranges),
+      ranges,
       speed: 0,
       t: now,
-      part: dest + ".part",
+      part,
       dest,
       done: false,
       ready: false,
-      finalized: false
+      finalized: false,
+      reqs: new Set()
     };
     transfers.set(key, item);
     });
@@ -432,25 +499,39 @@ async function handleUpload(req, res, url) {
   let written = 0;
   let finished = false;
   await ensurePart(item, size);
+  if (!item.reqs) item.reqs = new Set();
+  item.reqs.add(req);
   stats.inflight += 1;
   if (stats.inflight > stats.maxInflight) stats.maxInflight = stats.inflight;
   try {
     if (size > 0) {
+      let incoming = 0;
       written = await writeRange(req, item.part, offset, (n) => {
-        item.received = Math.min(size, item.received + n);
+        incoming += n;
         bumpSpeed(item, n);
+        item.received = Math.min(size, rangeBytes(item.ranges) + incoming);
       });
     } else {
       req.resume();
       await new Promise((resolve) => req.on("end", resolve));
     }
+  } catch (err) {
+    if (!sessionRec(session)) {
+      sendJson(res, { ok: false, error: "cancelled" }, 409);
+      return;
+    }
+    throw err;
   } finally {
+    item.reqs.delete(req);
     stats.inflight = Math.max(0, stats.inflight - 1);
   }
   stats.bytes += written;
   await withLock(`${item.id}:meta`, async () => {
-    if (size > 0) item.received = Math.min(size, item.received);
-    else item.received += written;
+    if (size > 0 && written > 0) {
+      item.ranges = mergeRanges((item.ranges || []).concat([[offset, offset + written]]));
+      item.received = rangeBytes(item.ranges);
+      saveMap(item);
+    } else item.received += written;
     const complete = (size > 0 && item.received >= size) || (size === 0 && !item.finalized);
     if (complete && !item.finalized) {
       item.finalized = true;
@@ -461,16 +542,25 @@ async function handleUpload(req, res, url) {
       let dest = item.dest;
       if (fs.existsSync(dest)) dest = uniqueDest(root, path.basename(dest));
       fs.renameSync(item.part, dest);
+      try { fs.unlinkSync(mapFile(item.part)); } catch { /* ignore */ }
     }
   });
   sendJson(res, { ok: true, received: item.received, done: finished });
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
     if (req.method === "GET" && url.pathname === "/api/health") {
-      sendJson(res, { ok: true, runtime: "node", parallel: true, lanes: laneCount(), adaptive: true });
+      sendJson(res, {
+        ok: true,
+        runtime: "node",
+        parallel: true,
+        lanes: laneCount(),
+        adaptive: true,
+        tls: httpsReady,
+        discover: Boolean(discoverHub)
+      });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
@@ -496,7 +586,12 @@ const server = http.createServer(async (req, res) => {
         usbHost: hosts.usbHost,
         wifiHost: hosts.wifiHost,
         open: reach.open === true,
-        path: hosts.path
+        path: hosts.path,
+        tls: httpsReady,
+        httpsPort: HTTPS_PORT,
+        httpsUrl: `https://${hosts.host}:${HTTPS_PORT}/`,
+        discover: Boolean(discoverHub),
+        discoverPort: DISCOVER_PORT
       });
       return;
     }
@@ -608,8 +703,45 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const session = crypto.randomBytes(12).toString("base64url");
-      sessions.set(session, Date.now());
+      sessions.set(session, { t: Date.now(), cancelled: false });
       sendJson(res, { ok: true, session });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/resume") {
+      const session = url.searchParams.get("session") || "";
+      if (!sessionRec(session)) {
+        sendJson(res, { ok: false, error: "no session" }, 403);
+        return;
+      }
+      let name;
+      let size;
+      try {
+        name = safeName(url.searchParams.get("name") || "");
+        size = Number(url.searchParams.get("size") || "0");
+      } catch {
+        sendJson(res, { ok: false, error: "bad meta" }, 400);
+        return;
+      }
+      const key = `${session}:${name}:${size}`;
+      const item = transfers.get(key);
+      if (item) {
+        sendJson(res, { ok: true, ranges: mergeRanges(item.ranges), received: rangeBytes(item.ranges), size });
+        return;
+      }
+      const part = path.join(saveRoot(), name) + ".part";
+      const ranges = fs.existsSync(part) ? loadMap(part) : [];
+      sendJson(res, { ok: true, ranges, received: rangeBytes(ranges), size });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/cancel") {
+      const incoming = await readJson(req);
+      const session = String(incoming.session || url.searchParams.get("session") || "");
+      const result = await cancelSession(session);
+      sendJson(res, result, result.ok ? 200 : 403);
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/discover") {
+      sendJson(res, { ok: true, peers: discoverHub ? discoverHub.peers() : [], port: DISCOVER_PORT });
       return;
     }
     if (req.method === "PUT" && url.pathname === "/api/upload") {
@@ -632,9 +764,38 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     sendJson(res, { error: String(err && err.message ? err.message : err) }, 500);
   }
-});
+}
 
-export { PORT, lanIp, server };
+const server = http.createServer(handleRequest);
+let httpsServer = null;
+
+export { PORT, HTTPS_PORT, DISCOVER_PORT, lanIp, server };
+
+function startTlsAndDiscover() {
+  if (!discoverHub) {
+    discoverHub = startDiscover({
+      getHost: lanIp,
+      alias: "Elinks",
+      port: PORT,
+      httpsPort: HTTPS_PORT
+    });
+  }
+  if (httpsServer) return;
+  try {
+    const tlsOpts = ensureTls(DATA, [lanIp()]);
+    httpsServer = https.createServer(tlsOpts, handleRequest);
+    httpsServer.maxConnections = 128;
+    httpsServer.once("error", () => {
+      httpsReady = false;
+    });
+    httpsServer.listen(HTTPS_PORT, "0.0.0.0", () => {
+      httpsReady = true;
+      console.log(`Elinks TLS https://${lanIp()}:${HTTPS_PORT}`);
+    });
+  } catch {
+    httpsReady = false;
+  }
+}
 
 export function startServer() {
   loadConfig();
@@ -642,12 +803,14 @@ export function startServer() {
   server.maxConnections = 128;
   if (server.listening) {
     linkMps();
+    startTlsAndDiscover();
     return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
   }
   return new Promise((resolve, reject) => {
     const onError = (err) => {
       server.off("listening", onListen);
       if (err && err.code === "EADDRINUSE") {
+        startTlsAndDiscover();
         resolve({ port: PORT, host: lanIp(), reused: true });
         return;
       }
@@ -657,6 +820,7 @@ export function startServer() {
       server.off("error", onError);
       console.log(`Elinks receiver http://${lanIp()}:${PORT}`);
       console.log(`Save path ${saveRoot()}`);
+      startTlsAndDiscover();
       resolve({ port: PORT, host: lanIp(), reused: false });
       setImmediate(() => {
         try { linkMps(); } catch { /* probe later on /api/info */ }
