@@ -73,6 +73,7 @@ try {
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
   if ($page.Content -match 'id="open-phone"') { $needStart = $true }
   if ($page.Content -match 'id="peer-modal-status"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="busy-pick-more"') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
   if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
   $phonePeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing -TimeoutSec 2
@@ -316,6 +317,9 @@ try {
   if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
   if ($live -notmatch 'function requestLink') { throw "send page must request a link before picking files" }
   if ($live -notmatch 'function setLinkButton') { throw "link handshake status must appear on the send button" }
+  if ($live -notmatch 'function rememberOutbound') { throw "send progress must keep completed files after the batch" }
+  if ($live -notmatch 'busy-pick-more') { throw "send progress must offer pick more files" }
+  if ($index -notmatch 'id="busy-pick-more"') { throw "progress list must include a pick-more control" }
   if ($index -match 'id="peer-modal-status"') { throw "waiting copy must not sit on a faint line above the button" }
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
   if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }

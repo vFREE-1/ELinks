@@ -919,7 +919,29 @@ html.is-busy .busy { display: flex; }
   color: var(--muted);
 }
 
+.section-head-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
 .section-head span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+#busy-pick-more {
+  margin: 0;
+  padding: 0;
+  height: auto;
+  color: var(--blue);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+#busy-pick-more[hidden] { display: none !important; }
+
+#busy-pick-more:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
 
 .row {
   display: grid;

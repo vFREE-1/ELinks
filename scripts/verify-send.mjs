@@ -86,6 +86,7 @@ if (!index.includes('id="send-pick-files"')) throw new Error("send picker missin
 if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");
 if (!index.includes('id="tab-link"') || !index.includes("允许建立")) throw new Error("receiver allow/deny tab missing");
 if (!index.includes("点一台电脑，发给它")) throw new Error("send hint missing");
+if (!index.includes('id="busy-pick-more"')) throw new Error("send progress must offer pick more files");
 if (directedBroadcast("192.168.1.22", "255.255.255.0") !== "192.168.1.255") throw new Error("discover must compute the subnet broadcast");
 const discoverSrc = fs.readFileSync(path.join(ROOT, "discover.mjs"), "utf8");
 if (!discoverSrc.includes("255.255.255.255")) throw new Error("discover must broadcast on the lan");
@@ -93,6 +94,8 @@ if (!discoverSrc.includes("setMulticastInterface")) throw new Error("discover mu
 if (!discoverSrc.includes("announce(true)")) throw new Error("discover must probe nearby machines, not only wait for multicast");
 
 const live = fs.readFileSync(path.join(ROOT, "live.js"), "utf8");
+if (!live.includes("function rememberOutbound")) throw new Error("send progress must keep completed files");
+if (!live.includes('busyKind === "send"')) throw new Error("send progress must not be replaced by the receive poll");
 if (!live.includes("function setDeskMode")) throw new Error("desk mode switch missing");
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");

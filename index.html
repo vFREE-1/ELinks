@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send5" />
+  <link rel="stylesheet" href="styles.css?v=send6" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -199,7 +199,10 @@
       <div class="list">
         <div class="section-head">
           <h2 id="busy-live-title">正在接收</h2>
-          <span id="active-count">等待发送</span>
+          <div class="section-head-actions">
+            <button type="button" class="text" id="busy-pick-more" hidden>再选文件</button>
+            <span id="active-count">等待发送</span>
+          </div>
         </div>
         <div id="live-list"></div>
         <div class="section-head done-head">
@@ -224,6 +227,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send5"></script>
-  <script src="live.js?v=send10"></script>
+  <script src="live.js?v=send11"></script>
 </body>
 </html>

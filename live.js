@@ -502,6 +502,9 @@ let outboundActive = false;
 let outboundPeer = null;
 let outboundSession = "";
 let outboundBase = "";
+let busyKind = "";
+let outboundLog = [];
+let outboundTick = { t: 0, sent: 0 };
 
 function hashStr(text) {
   let n = 2166136261;
@@ -732,11 +735,15 @@ function respondLink(allow) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: currentIncomingId, allow: allow })
   }).then(function (res) { return res.json(); }).then(function (data) {
-    if (data && data.ok && allow) setDeskMode("recv");
+    if (data && data.ok && allow) {
+      setBusyDirection("recv");
+      LINKS.setMode(true);
+    }
   }).catch(function () {});
 }
 
 function setBusyDirection(kind) {
+  busyKind = kind;
   const sending = kind === "send";
   const name = (outboundPeer && (outboundPeer.alias || outboundPeer.host)) || "附近电脑";
   if ($("busy-live-title")) $("busy-live-title").textContent = sending ? "正在发送" : "正在接收";
@@ -745,6 +752,22 @@ function setBusyDirection(kind) {
   if ($("lane-count")) {
     $("lane-count").textContent = sending ? (MAX_CONN + " 路并行发送") : (MAX_CONN + " 路并行 · 按链路调整");
   }
+  const more = $("busy-pick-more");
+  if (more) {
+    more.hidden = !sending;
+    more.disabled = !sending || outboundActive;
+  }
+}
+
+function appendDoneRow(box, item) {
+  const node = document.createElement("div");
+  node.className = "done-row";
+  node.innerHTML = "<b></b><span></span><span></span><span></span>";
+  node.querySelector("b").textContent = item.name;
+  node.children[1].textContent = formatSize(item.size);
+  node.children[2].textContent = item.mid || (item.error ? "失败" : "已发出");
+  node.children[3].textContent = item.end || (item.error ? item.error : "完成");
+  box.appendChild(node);
 }
 
 function renderOutbound(items) {
@@ -753,30 +776,32 @@ function renderOutbound(items) {
   if (!live || !doneBox) return;
   live.innerHTML = "";
   doneBox.innerHTML = "";
-  let used = 0;
+  let sent = 0;
   let activeCount = 0;
+  outboundLog.forEach(function (item) { appendDoneRow(doneBox, item); });
   (items || []).forEach(function (item) {
+    sent += Number(item.sent) || 0;
+    if (item.done) {
+      appendDoneRow(doneBox, item);
+      return;
+    }
+    activeCount += 1;
     const row = {
       name: item.name,
       size: item.size,
       received: item.sent || 0,
       speed: 0
     };
-    if (item.done) {
-      const node = document.createElement("div");
-      node.className = "done-row";
-      node.innerHTML = "<b></b><span></span><span></span><span></span>";
-      node.querySelector("b").textContent = item.name;
-      node.children[1].textContent = formatSize(item.size);
-      node.children[2].textContent = item.error ? "失败" : "已发出";
-      node.children[3].textContent = item.error ? item.error : "完成";
-      doneBox.appendChild(node);
-      return;
-    }
-    activeCount += 1;
     live.insertAdjacentHTML("beforeend", renderRow(row));
     fillRow(live.lastElementChild, row);
   });
+  const now = Date.now();
+  let used = 0;
+  if (outboundTick.t) {
+    const dt = Math.max(0.2, (now - outboundTick.t) / 1000);
+    used = Math.max(0, (sent - outboundTick.sent) / dt);
+  }
+  outboundTick = { t: now, sent: sent };
   const cap = ((info && info.linkMps) || 125) * 1e6;
   if ($("now-mps")) $("now-mps").textContent = Math.round(used / 1e6).toString();
   $("mbps").textContent = Math.round(used / 1e6).toString();
@@ -784,12 +809,27 @@ function renderOutbound(items) {
   $("util").textContent = Math.min(100, Math.round((used / cap) * 100)) + "%";
   $("meter-fill").style.width = Math.min(100, (used / cap) * 100).toFixed(1) + "%";
   $("active-count").textContent = activeCount ? (activeCount + " 个文件并行") : "发送完成";
-  $("today").textContent = "这次已发送 " + (items || []).filter(function (item) { return item.done && !item.error; }).length + " 个文件";
+  const doneCount = outboundLog.length + (items || []).filter(function (item) { return item.done && !item.error; }).length;
+  $("today").textContent = "这次已发送 " + doneCount + " 个文件";
+}
+
+function rememberOutbound(items) {
+  (items || []).forEach(function (item) {
+    if (!item || !item.done) return;
+    outboundLog.push({
+      name: item.name,
+      size: item.size,
+      error: item.error || "",
+      mid: item.error ? "失败" : "已发出",
+      end: item.error ? item.error : "完成"
+    });
+  });
 }
 
 function startOutbound(files) {
   closePeerModal();
   outboundActive = true;
+  outboundTick = { t: 0, sent: 0 };
   setBusyDirection("send");
   LINKS.setMode(true);
   import("./send.mjs").then(function (mod) {
@@ -799,10 +839,15 @@ function startOutbound(files) {
       base: outboundBase,
       onProgress: renderOutbound
     });
-  }).then(function () {
+  }).then(function (items) {
+    rememberOutbound(items);
     outboundActive = false;
+    setBusyDirection("send");
+    renderOutbound([]);
   }).catch(function () {
     outboundActive = false;
+    setBusyDirection("send");
+    renderOutbound([]);
   });
 }
 
@@ -813,6 +858,13 @@ $("pick-files").addEventListener("click", function () {
 if ($("send-pick-files")) {
   $("send-pick-files").addEventListener("click", function () {
     if (!outboundSession || !outboundBase) return;
+    $("file-input").click();
+  });
+}
+
+if ($("busy-pick-more")) {
+  $("busy-pick-more").addEventListener("click", function () {
+    if (!outboundSession || !outboundBase || outboundActive) return;
     $("file-input").click();
   });
 }
@@ -888,6 +940,7 @@ async function pollTransfers() {
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
   showLinkTab(data.pendingLinks || []);
   if (outboundActive) return;
+  if (busyKind === "send" && !(data.active || []).length) return;
   const live = $("live-list");
   live.innerHTML = "";
   let used = 0;
