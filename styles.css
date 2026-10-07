@@ -672,12 +672,23 @@ html.is-desktop #qr {
   font-weight: 500;
   text-align: right;
   word-break: break-all;
+  font-variant-numeric: tabular-nums;
 }
 
 .modal-card .fill,
 .link-actions .fill {
   width: 100%;
   margin: 0 0 8px;
+}
+
+.modal-card #peer-modal-extend {
+  background: #fff;
+  color: #1f6feb;
+  border: 1px solid rgba(31, 111, 235, 0.35);
+}
+
+.modal-card #peer-modal-extend:hover {
+  background: rgba(31, 111, 235, 0.06);
 }
 
 .modal-card #peer-modal-drop {

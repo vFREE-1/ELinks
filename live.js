@@ -569,13 +569,18 @@ function orbPoint(host, opts) {
   };
 }
 
-function holdLabel(until) {
-  const ms = Math.max(0, Number(until) - Date.now());
-  const min = Math.round(ms / 60000);
-  if (!until || ms <= 0) return "";
-  if (min >= 55) return "还剩约 1 小时";
-  if (min <= 1) return "还剩不到 1 分钟";
-  return "还剩约 " + min + " 分钟";
+function pad2(n) {
+  return (n < 10 ? "0" : "") + n;
+}
+
+function formatHold(until) {
+  const end = Number(until) || 0;
+  if (!end) return "";
+  const total = Math.max(0, Math.floor((end - Date.now()) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return pad2(h) + ":" + pad2(m) + ":" + pad2(s);
 }
 
 function restoreBonds() {
@@ -653,6 +658,22 @@ function setOrbState(node, state) {
   node.classList.add(state || "idle");
 }
 
+function ballPoint(field, node) {
+  const ball = node && node.querySelector("i");
+  const box = field ? field.getBoundingClientRect() : null;
+  const mark = ball ? ball.getBoundingClientRect() : null;
+  if (!box || !mark || box.width < 8 || box.height < 8) {
+    return {
+      x: Number(node && node.style.getPropertyValue("--x")) || 50,
+      y: Number(node && node.style.getPropertyValue("--y")) || 50
+    };
+  }
+  return {
+    x: ((mark.left + mark.width / 2 - box.left) / box.width) * 100,
+    y: ((mark.top + mark.height / 2 - box.top) / box.height) * 100
+  };
+}
+
 function edgePoint(hub, spoke, box) {
   if (!box) return hub;
   const dx = spoke.x - hub.x;
@@ -728,11 +749,8 @@ function renderOrbs(peers) {
     node._peer = peer;
     const state = bondState(peer);
     setOrbState(node, state);
-    spokes.push({
-      x: Number(node.style.getPropertyValue("--x")) || 50,
-      y: Number(node.style.getPropertyValue("--y")) || 50,
-      state: state
-    });
+    const at = ballPoint(field, node);
+    spokes.push({ x: at.x, y: at.y, state: state });
   });
   orbNodes.forEach(function (node, host) {
     if (seen.has(host)) return;
@@ -764,11 +782,8 @@ function renderRecvOrbs(bonds) {
     node._peer = peer;
     const state = bondState(peer);
     setOrbState(node, state);
-    spokes.push({
-      x: Number(node.style.getPropertyValue("--x")) || 50,
-      y: Number(node.style.getPropertyValue("--y")) || 50,
-      state: state
-    });
+    const at = ballPoint(field, node);
+    spokes.push({ x: at.x, y: at.y, state: state });
   });
   recvOrbNodes.forEach(function (node, host) {
     if (seen.has(host)) return;
@@ -823,11 +838,28 @@ function setLinkButton(label, busy) {
   btn.textContent = label || "建立发送链接";
 }
 
-function setHoldRow(until) {
+let holdUntil = 0;
+let holdTimer = 0;
+
+function paintHold() {
   const row = $("peer-fact-hold-row");
-  const label = holdLabel(until);
-  if (row) row.hidden = !label;
-  if ($("peer-fact-hold")) $("peer-fact-hold").textContent = label || "";
+  const label = formatHold(holdUntil);
+  if (row) row.hidden = !holdUntil;
+  if ($("peer-fact-hold")) $("peer-fact-hold").textContent = label || "00:00:00";
+  if (holdUntil && holdUntil <= Date.now() && holdTimer) {
+    clearInterval(holdTimer);
+    holdTimer = 0;
+  }
+}
+
+function setHoldRow(until) {
+  holdUntil = Number(until) || 0;
+  if (holdTimer) {
+    clearInterval(holdTimer);
+    holdTimer = 0;
+  }
+  paintHold();
+  if (holdUntil > Date.now()) holdTimer = setInterval(paintHold, 1000);
 }
 
 function closePeerModal() {
@@ -838,6 +870,7 @@ function closePeerModal() {
   setLinkButton("建立发送链接", false);
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
   if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+  if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
   setHoldRow(0);
 }
 
@@ -867,6 +900,7 @@ function openPeerModal(peer, role) {
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = false;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = false;
     setHoldRow(peer && peer.until);
   } else if (linked) {
     outboundSession = bond.session;
@@ -875,6 +909,7 @@ function openPeerModal(peer, role) {
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
     setHoldRow(bond.until);
   } else {
     outboundSession = "";
@@ -883,6 +918,7 @@ function openPeerModal(peer, role) {
     setLinkButton("建立发送链接", false);
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
     setHoldRow(0);
   }
   if ($("peer-modal")) $("peer-modal").hidden = false;
@@ -914,6 +950,7 @@ function applyLinkStatus(data) {
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
     setHoldRow(data.until);
     paintSendOrbs();
   }
@@ -1208,6 +1245,32 @@ if ($("peer-modal-close")) {
 
 if ($("peer-modal-drop")) {
   $("peer-modal-drop").addEventListener("click", function () { dropBond(); });
+}
+
+function extendBond() {
+  const peer = outboundPeer;
+  if (!peer || !peer.id || modalRole !== "recv") return;
+  const btn = $("peer-modal-extend");
+  if (btn) btn.disabled = true;
+  fetch("/api/link-extend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: peer.id })
+  }).then(function (res) { return res.json(); }).then(function (data) {
+    if (btn) btn.disabled = false;
+    if (!data || !data.ok || !data.until) return;
+    peer.until = data.until;
+    lastBonds.forEach(function (row) {
+      if (row && row.id === peer.id) row.until = data.until;
+    });
+    setHoldRow(data.until);
+  }).catch(function () {
+    if (btn) btn.disabled = false;
+  });
+}
+
+if ($("peer-modal-extend")) {
+  $("peer-modal-extend").addEventListener("click", function () { extendBond(); });
 }
 
 if ($("link-allow")) {

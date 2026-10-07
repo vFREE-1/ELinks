@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -77,6 +77,7 @@ try {
   if ($page.Content -notmatch 'busy-hero') { $needStart = $true }
   if ($page.Content -notmatch 'id="recv-universe"') { $needStart = $true }
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="peer-modal-extend"') { $needStart = $true }
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
   if ($page.Content -notmatch 'class="qr-slot"') { $needStart = $true }
@@ -369,6 +370,11 @@ try {
   if ($mainSrv -notmatch 'function closeSession') { throw "drop and expiry must close the link without killing the current upload" }
   if ($mainSrv -notmatch 'rec.closed && !transfers.has\(key\)') { throw "closed sessions must reject new files only" }
   if ($mainSrv -notmatch 'LINK_HOLD_MS = 60 \* 60 \* 1000') { throw "accepted links must persist for one hour" }
+  if ($mainSrv -notmatch 'LINK_EXTEND_MS = 2 \* 60 \* 60 \* 1000') { throw "extend must add two hours" }
+  if ($mainSrv -notmatch '/api/link-extend') { throw "receiver must be able to extend a live bond" }
+  if ($live -notmatch 'function formatHold') { throw "bond countdown must show hours minutes and seconds" }
+  if ($live -notmatch 'function ballPoint') { throw "orb lines must meet the center of the ball" }
+  if ($index -notmatch 'id="peer-modal-extend"') { throw "extend connection button missing" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }

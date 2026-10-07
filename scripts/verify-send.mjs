@@ -187,6 +187,12 @@ try {
   const allowSt = await json("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
   if (allowSt.status !== "accepted" || !allowSt.session) throw new Error("accepted link should yield a session");
   if (!allowSt.until || allowSt.until < Date.now() + 50 * 60 * 1000) throw new Error("accepted link should stay valid for an hour");
+  const extended = await request("POST", "/api/link-extend", Buffer.from(JSON.stringify({ id: accepted.json.id })), { json: true });
+  if (!extended.json.ok || extended.json.until < allowSt.until + 110 * 60 * 1000) {
+    throw new Error("extend should add two hours to the live bond");
+  }
+  const extSt = await json("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
+  if (extSt.until !== extended.json.until) throw new Error("extended bond should keep the new deadline");
 
   const bonded = await json("GET", "/api/transfers");
   if (!Array.isArray(bonded.bonds) || !bonded.bonds.some((row) => row.id === accepted.json.id && row.session === allowSt.session)) {

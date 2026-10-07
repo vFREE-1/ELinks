@@ -268,6 +268,7 @@ function safeName(name) {
 }
 
 const LINK_HOLD_MS = 60 * 60 * 1000;
+const LINK_EXTEND_MS = 2 * 60 * 60 * 1000;
 
 function voidSession(session) {
   const id = String(session || "");
@@ -669,7 +670,8 @@ async function handleRequest(req, res) {
         discover: Boolean(discoverHub),
         clearDone: true,
         sessionHold: true,
-        sessionDrain: true
+        sessionDrain: true,
+        linkExtend: true
       });
       return;
     }
@@ -934,6 +936,25 @@ async function handleRequest(req, res) {
       dropLinkSession(row);
       linkReqs.delete(row.id);
       sendJson(res, { ok: true, id: row.id, status: "dropped" });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/link-extend") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      const incoming = await readJson(req);
+      expireLinks();
+      const row = linkReqs.get(String(incoming.id || ""));
+      if (!row || row.status !== "accepted") {
+        sendJson(res, { ok: false, error: "no link" }, 404);
+        return;
+      }
+      const until = Math.max(Date.now(), Number(row.until) || 0) + LINK_EXTEND_MS;
+      row.until = until;
+      const rec = row.session ? sessions.get(row.session) : null;
+      if (rec && !rec.cancelled) rec.until = until;
+      sendJson(res, { ok: true, id: row.id, status: "accepted", until });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/resume") {
