@@ -178,6 +178,7 @@ try {
   if ($phonePage.Content -notmatch 'pick-entry') { throw "phone page must use a dedicated upload entry" }
   if ($phonePage.Content -notmatch 'id="file-more"') { throw "phone page must keep a second pick entry after sending" }
   if ($phonePage.Content -notmatch 'id="send-stop"') { throw "phone page must be able to cancel the session" }
+  if ($phonePage.Content -notmatch 'id="wechat-hint"') { throw "phone page must explain WeChat picker limits" }
   if ($phonePage.Content -match 'id="qr"') { throw "phone page must not include the waiting qr" }
   if ($phonePage.Content -match 'id="allow-lan"') { throw "phone page must not include allow-lan" }
   if ($phonePage.Content -match 'id="join-wifi"') { throw "phone page must not include wifi join" }
@@ -363,6 +364,7 @@ try {
   if ($phoneJs -notmatch 'usb-path') { throw "phone page must load the usb switch helper" }
   if ($phoneJs -notmatch 'cancelSend') { throw "phone page must cancel in-flight uploads" }
   if ($phoneJs -notmatch '/api/cancel') { throw "phone page must tell the receiver to drop the session" }
+  if ($phoneJs -notmatch 'MicroMessenger') { throw "phone page must detect WeChat in-app browser" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
   if ($mainSrv -notmatch 'usb-path.mjs') { throw "usb-path.mjs must be on the client allow list" }
   $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw

@@ -21,6 +21,18 @@ let lanes = 4;
 let sending = false;
 let paintTimer = 0;
 
+function inWeChat() {
+  return /MicroMessenger/i.test(navigator.userAgent || "");
+}
+
+function pickHint() {
+  if ($("wechat-hint")) $("wechat-hint").hidden = !inWeChat();
+  if (inWeChat()) {
+    return "微信里请点右上角用浏览器打开。一次大约只能选 100 张，也可以分几批选。";
+  }
+  return "选好就传到这台电脑，不用再改地址。";
+}
+
 function setStatus(text) {
   $("phone-status").textContent = text;
 }
@@ -53,7 +65,7 @@ async function pair(fromForm) {
   sessionId = data.session;
   $("join-pass").hidden = true;
   $("pick").hidden = false;
-  setStatus("选好就传到这台电脑，不用再改地址。");
+  setStatus(pickHint());
   return true;
 }
 
