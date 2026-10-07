@@ -79,6 +79,7 @@ function probe(timeoutMs) {
 
 const indexPath = path.join(ROOT, "index.html");
 const index = fs.readFileSync(indexPath, "utf8");
+if (!index.includes("局域网文件互传")) throw new Error("toolbar subtitle should say LAN file transfer");
 if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw new Error("receive/send tabs missing");
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
 if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");
@@ -118,6 +119,7 @@ const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
   throw new Error("busy nav must highlight 返回接收");
 }
+if (live.includes("桌面接收") || !live.includes("局域网文件互传")) throw new Error("toolbar subtitle must stay 局域网文件互传 on receive");
 
 const snapshot = await json("GET", "/api/info");
 if (typeof snapshot.alias !== "string" || !snapshot.alias.trim()) throw new Error("info.alias missing");

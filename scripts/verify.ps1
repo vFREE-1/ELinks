@@ -396,7 +396,7 @@ try {
   if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
   if ($index -notmatch 'id="random-password"') { throw "random password button missing" }
   if ($index -notmatch 'id="check-update"') { throw "update check missing" }
-  if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub"[^>]*>桌面接收</span>') { throw "Elinks and 桌面接收 must stay on one toolbar row" }
+  if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub"[^>]*>局域网文件互传</span>') { throw "Elinks and brand-sub must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw

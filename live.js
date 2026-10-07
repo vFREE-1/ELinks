@@ -134,7 +134,7 @@ function setDeskMode(mode) {
   document.documentElement.classList.toggle("is-send", send);
   document.documentElement.classList.toggle("is-link", link);
   if ($("brand-sub")) {
-    $("brand-sub").textContent = link ? "连接请求" : send ? "传到附近" : "桌面接收";
+    $("brand-sub").textContent = link ? "连接请求" : send ? "传到附近" : "局域网文件互传";
   }
   if ($("stage")) {
     $("stage").setAttribute("aria-label", link ? "连接请求" : send ? "传到附近电脑" : "等待接收");
