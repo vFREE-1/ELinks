@@ -355,6 +355,51 @@ html.is-send .stage {
   overflow: hidden;
 }
 
+.recv-universe {
+  position: relative;
+  z-index: 2;
+  width: 248px;
+  height: 248px;
+  flex: none;
+}
+
+.recv-universe.has-orbs {
+  width: min(720px, 90vw);
+  height: min(540px, 64vh);
+}
+
+.recv-universe .stage-main {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 248px;
+  height: 248px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.orb-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.orb-line {
+  fill: none;
+  stroke-width: 0.7;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+
+.orb-line.idle { stroke: #d4d7de; }
+.orb-line.pending { stroke: #f5a524; }
+.orb-line.linked { stroke: #1f6feb; }
+.orb-line.live { stroke: #34c759; }
+
 .stage .universe-empty,
 .universe-empty {
   position: absolute;
@@ -436,6 +481,30 @@ html.is-send .stage {
 }
 
 .orb.self span { color: var(--muted); font-weight: 500; }
+
+.orb.pending i {
+  background:
+    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
+    radial-gradient(circle at 50% 46%, #ffe3a8 0 36%, #f5a524 72%, #c47b10 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 0 22px rgba(245, 165, 36, 0.55);
+}
+
+.orb.linked i {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 0 26px rgba(31, 111, 235, 0.7);
+}
+
+.orb.live i {
+  background:
+    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
+    radial-gradient(circle at 50% 46%, #b8f0c8 0 36%, #34c759 72%, #1f8f44 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 0 22px rgba(52, 199, 89, 0.55);
+}
 
 .orb:not(.self):hover i {
   transform: scale(1.06);
@@ -561,6 +630,16 @@ html.is-send .stage {
 .link-actions .fill {
   width: 100%;
   margin: 0 0 8px;
+}
+
+.modal-card #peer-modal-drop {
+  background: #fff;
+  color: #c4372f;
+  border: 1px solid rgba(196, 55, 47, 0.28);
+}
+
+.modal-card #peer-modal-drop:hover {
+  background: rgba(196, 55, 47, 0.06);
 }
 
 .modal-card .text,

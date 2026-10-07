@@ -270,13 +270,30 @@ function safeName(name) {
 function sessionRec(id) {
   const rec = sessions.get(id);
   if (!rec || rec.cancelled) return null;
+  if (rec.until && Date.now() > rec.until) return null;
   return rec;
+}
+
+const LINK_HOLD_MS = 60 * 60 * 1000;
+
+function dropLinkSession(row) {
+  if (!row || !row.session) return;
+  const rec = sessions.get(row.session);
+  if (rec) rec.cancelled = true;
 }
 
 function expireLinks() {
   const now = Date.now();
   linkReqs.forEach((row, id) => {
     if (row.status === "pending" && now - row.t > 60000) row.status = "expired";
+    if (row.status === "accepted") {
+      const until = Number(row.until) || (row.t + LINK_HOLD_MS);
+      if (now > until) {
+        dropLinkSession(row);
+        linkReqs.delete(id);
+      }
+      return;
+    }
     if (now - row.t > 120000) linkReqs.delete(id);
   });
 }
@@ -288,8 +305,22 @@ function publicLink(row) {
     host: row.host,
     port: row.port,
     status: row.status,
+    until: row.until || 0,
+    session: row.session || "",
     at: row.t
   };
+}
+
+function liveBonds() {
+  expireLinks();
+  return [...linkReqs.values()].filter((row) => row.status === "accepted").map(publicLink);
+}
+
+function reuseAccepted(host) {
+  const ip = String(host || "").trim();
+  if (!ip) return null;
+  expireLinks();
+  return [...linkReqs.values()].find((row) => row.status === "accepted" && row.host === ip) || null;
 }
 
 function pendingLinks() {
@@ -331,6 +362,7 @@ function uniqueDest(root, name) {
 function publicTransfer(item) {
   return {
     id: item.id,
+    session: item.session || "",
     name: item.name,
     size: item.size,
     received: item.received,
@@ -518,6 +550,7 @@ async function handleUpload(req, res, url) {
       if (!inside(root, dest)) throw new Error("path");
     item = {
       id: key,
+      session,
       name: path.basename(dest),
       size,
       received: rangeBytes(ranges),
@@ -699,7 +732,8 @@ async function handleRequest(req, res) {
       sendJson(res, {
         active: [...transfers.values()].map(publicTransfer),
         done: done.slice(-20),
-        pendingLinks: local ? pendingLinks() : []
+        pendingLinks: local ? pendingLinks() : [],
+        bonds: local ? liveBonds() : []
       });
       return;
     }
@@ -783,15 +817,28 @@ async function handleRequest(req, res) {
         sendJson(res, { ok: false, error: "bad token" }, 403);
         return;
       }
+      const host = String(incoming.host || "").trim();
+      const existing = reuseAccepted(host);
+      if (existing) {
+        sendJson(res, {
+          ok: true,
+          id: existing.id,
+          status: "accepted",
+          session: existing.session,
+          until: existing.until || 0
+        });
+        return;
+      }
       expireLinks();
       const id = crypto.randomBytes(12).toString("base64url");
       const row = {
         id,
         alias: cleanAlias(incoming.alias),
-        host: String(incoming.host || "").trim(),
+        host,
         port: Number(incoming.port) || PORT,
         status: "pending",
         session: "",
+        until: 0,
         t: Date.now()
       };
       linkReqs.set(id, row);
@@ -806,7 +853,7 @@ async function handleRequest(req, res) {
         sendJson(res, { ok: false, error: "no link" }, 404);
         return;
       }
-      const payload = { ok: true, id: row.id, status: row.status };
+      const payload = { ok: true, id: row.id, status: row.status, until: row.until || 0 };
       if (row.status === "accepted" && row.session) payload.session = row.session;
       sendJson(res, payload);
       return;
@@ -824,15 +871,34 @@ async function handleRequest(req, res) {
         return;
       }
       if (incoming.allow === true) {
+        const until = Date.now() + LINK_HOLD_MS;
         const session = crypto.randomBytes(12).toString("base64url");
-        sessions.set(session, { t: Date.now(), cancelled: false });
+        sessions.set(session, { t: Date.now(), cancelled: false, until });
         row.session = session;
         row.status = "accepted";
-        sendJson(res, { ok: true, id: row.id, status: "accepted" });
+        row.until = until;
+        sendJson(res, { ok: true, id: row.id, status: "accepted", until });
         return;
       }
       row.status = "denied";
       sendJson(res, { ok: true, id: row.id, status: "denied" });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/link-drop") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      const incoming = await readJson(req);
+      expireLinks();
+      const row = linkReqs.get(String(incoming.id || ""));
+      if (!row || row.status !== "accepted") {
+        sendJson(res, { ok: false, error: "no link" }, 404);
+        return;
+      }
+      dropLinkSession(row);
+      linkReqs.delete(row.id);
+      sendJson(res, { ok: true, id: row.id, status: "dropped" });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/resume") {

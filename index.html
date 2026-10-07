@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send7" />
+  <link rel="stylesheet" href="styles.css?v=send8" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -49,10 +49,13 @@
           <button type="button" class="stage-tab" id="tab-addr" role="tab" aria-selected="false" aria-controls="panel-addr">地址上传</button>
         </div>
         <div class="stage-panel" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan">
-          <div class="stage-main">
-            <div class="listen">
-              <div class="plate">
-                <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+          <div class="recv-universe" id="recv-universe">
+            <svg class="orb-lines" id="recv-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="stage-main">
+              <div class="listen">
+                <div class="plate">
+                  <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+                </div>
               </div>
             </div>
           </div>
@@ -87,6 +90,7 @@
       </div>
       <div class="desk-mode send-mode" id="mode-send" hidden>
         <div class="universe" id="universe">
+          <svg class="orb-lines" id="send-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
           <button type="button" class="orb self" id="orb-self" disabled>
             <i></i>
             <span id="orb-self-name">Elinks</span>
@@ -120,9 +124,11 @@
           <div><dt>内网 IP</dt><dd id="peer-fact-ip"></dd></div>
           <div><dt>端口</dt><dd id="peer-fact-port"></dd></div>
           <div><dt>HTTPS</dt><dd id="peer-fact-tls"></dd></div>
+          <div id="peer-fact-hold-row" hidden><dt>有效</dt><dd id="peer-fact-hold"></dd></div>
         </dl>
         <button type="button" class="fill" id="peer-modal-link">建立发送链接</button>
         <button type="button" class="fill" id="send-pick-files" hidden>选择照片和视频</button>
+        <button type="button" class="fill" id="peer-modal-drop" hidden>断开连接</button>
         <button type="button" class="text" id="peer-modal-close">取消</button>
       </div>
     </div>
@@ -233,6 +239,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send5"></script>
-  <script src="live.js?v=send12"></script>
+  <script src="live.js?v=send13"></script>
 </body>
 </html>

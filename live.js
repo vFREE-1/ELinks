@@ -66,6 +66,7 @@ async function boot() {
     return;
   }
 
+  restoreBonds();
   pollTransfers();
   pollTimer = setInterval(pollTransfers, 400);
   checkForUpdate(false);
@@ -139,7 +140,7 @@ function setDeskMode(mode) {
     $("stage").setAttribute("aria-label", link ? "连接请求" : send ? "传到附近电脑" : "等待接收");
   }
   if (send) startUniverse();
-  else stopUniverse();
+  else if (universeTimer && !document.documentElement.classList.contains("is-send")) stopUniverse();
   requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
 }
 
@@ -498,6 +499,11 @@ $("scan").addEventListener("click", function (event) {
 
 let universeTimer = 0;
 const orbNodes = new Map();
+const recvOrbNodes = new Map();
+const senderBonds = new Map();
+let lastBonds = [];
+let liveSessions = new Set();
+let modalRole = "send";
 let outboundActive = false;
 let outboundPeer = null;
 let outboundSession = "";
@@ -505,6 +511,7 @@ let outboundBase = "";
 let busyKind = "";
 let outboundLog = [];
 let outboundTick = { t: 0, sent: 0 };
+const BOND_STORE = "elinks.bonds";
 
 function hashStr(text) {
   let n = 2166136261;
@@ -513,53 +520,207 @@ function hashStr(text) {
   return n >>> 0;
 }
 
-function orbPoint(host) {
+function orbPoint(host, opts) {
   const n = hashStr(host);
   const angle = ((n % 360) / 180) * Math.PI;
-  const radius = 28 + (n % 11);
+  const minR = (opts && opts.minR) || 28;
+  const yScale = (opts && opts.yScale) || 0.78;
+  const radius = minR + (n % 11);
   return {
-    x: Math.max(14, Math.min(86, 50 + Math.cos(angle) * radius)),
-    y: Math.max(18, Math.min(78, 48 + Math.sin(angle) * radius * 0.78))
+    x: Math.max(12, Math.min(88, 50 + Math.cos(angle) * radius)),
+    y: Math.max(14, Math.min(86, 50 + Math.sin(angle) * radius * yScale))
   };
+}
+
+function holdLabel(until) {
+  const ms = Math.max(0, Number(until) - Date.now());
+  const min = Math.round(ms / 60000);
+  if (!until || ms <= 0) return "";
+  if (min >= 55) return "还剩约 1 小时";
+  if (min <= 1) return "还剩不到 1 分钟";
+  return "还剩约 " + min + " 分钟";
+}
+
+function restoreBonds() {
+  senderBonds.clear();
+  try {
+    const rows = JSON.parse(localStorage.getItem(BOND_STORE) || "[]");
+    (rows || []).forEach(function (row) {
+      if (!row || !row.host || !row.session) return;
+      if (Number(row.until) <= Date.now()) return;
+      senderBonds.set(row.host, row);
+    });
+  } catch (err) {}
+}
+
+function persistBonds() {
+  const rows = [];
+  senderBonds.forEach(function (row) {
+    if (row && row.host && row.session && Number(row.until) > Date.now()) rows.push(row);
+  });
+  try { localStorage.setItem(BOND_STORE, JSON.stringify(rows)); } catch (err) {}
+}
+
+function rememberSenderBond(peer, data) {
+  if (!peer || !peer.host || !data || !data.session) return;
+  const until = Number(data.until) || (Date.now() + 60 * 60 * 1000);
+  senderBonds.set(peer.host, {
+    id: data.id || "",
+    alias: peer.alias || "",
+    host: peer.host,
+    port: peer.port || 8730,
+    httpsPort: peer.httpsPort || 0,
+    token: peer.token || "",
+    session: data.session,
+    until: until
+  });
+  persistBonds();
+}
+
+function liveSenderBond(host) {
+  const row = senderBonds.get(host);
+  if (!row || Number(row.until) <= Date.now() || !row.session) {
+    if (row) {
+      senderBonds.delete(host);
+      persistBonds();
+    }
+    return null;
+  }
+  return row;
+}
+
+function bondState(peer) {
+  if (!peer || !peer.host) return "idle";
+  const host = peer.host;
+  if (outboundActive && outboundPeer && outboundPeer.host === host) return "live";
+  if (peer.session && liveSessions.has(peer.session)) return "live";
+  const bonded = liveSenderBond(host) || (peer.status === "accepted" && Number(peer.until) > Date.now());
+  if (outboundPeer && outboundPeer.host === host && outboundLinkId && !outboundSession) return "pending";
+  if (bonded) return "linked";
+  return "idle";
+}
+
+function setOrbState(node, state) {
+  if (!node) return;
+  node.classList.remove("idle", "pending", "linked", "live");
+  node.classList.add(state || "idle");
+}
+
+function drawLines(svg, hub, spokes) {
+  if (!svg) return;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  (spokes || []).forEach(function (spoke) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", String(hub.x));
+    line.setAttribute("y1", String(hub.y));
+    line.setAttribute("x2", String(spoke.x));
+    line.setAttribute("y2", String(spoke.y));
+    line.setAttribute("class", "orb-line " + (spoke.state || "idle"));
+    svg.appendChild(line);
+  });
+}
+
+function makeOrb(field, peer, clickHost, point) {
+  const seed = hashStr(peer.host);
+  const node = document.createElement("button");
+  node.type = "button";
+  node.className = "orb idle";
+  node.style.setProperty("--x", point.x.toFixed(1));
+  node.style.setProperty("--y", point.y.toFixed(1));
+  node.style.animationDelay = "-" + ((seed % 17) * 0.37).toFixed(2) + "s";
+  node.style.animationDuration = (7.2 + (seed % 5) * 0.7).toFixed(1) + "s";
+  node.appendChild(document.createElement("i"));
+  node.appendChild(document.createElement("span"));
+  node.addEventListener("click", function () { clickHost(peer.host); });
+  field.appendChild(node);
+  return node;
+}
+
+function mergeSendPeers(peers) {
+  [...senderBonds.keys()].forEach(function (host) { liveSenderBond(host); });
+  const list = [];
+  const seen = new Set();
+  (peers || []).concat([...senderBonds.values()]).forEach(function (peer) {
+    if (!peer || !peer.host || seen.has(peer.host)) return;
+    seen.add(peer.host);
+    const bond = liveSenderBond(peer.host);
+    list.push(bond ? Object.assign({}, peer, bond) : peer);
+  });
+  return list;
 }
 
 function renderOrbs(peers) {
   const field = $("universe");
   const empty = $("universe-empty");
   if (!field) return;
+  const list = mergeSendPeers(peers);
   const seen = new Set();
-  (peers || []).forEach(function (peer) {
+  const spokes = [];
+  list.forEach(function (peer) {
     if (!peer || !peer.host) return;
     seen.add(peer.host);
     let node = orbNodes.get(peer.host);
     if (!node) {
-      const point = orbPoint(peer.host);
-      const seed = hashStr(peer.host);
-      node = document.createElement("button");
-      node.type = "button";
-      node.className = "orb";
-      node.style.setProperty("--x", point.x.toFixed(1));
-      node.style.setProperty("--y", point.y.toFixed(1));
-      node.style.animationDelay = "-" + ((seed % 17) * 0.37).toFixed(2) + "s";
-      node.style.animationDuration = (7.2 + (seed % 5) * 0.7).toFixed(1) + "s";
-      node.appendChild(document.createElement("i"));
-      node.appendChild(document.createElement("span"));
-      node.addEventListener("click", function () { choosePeer(peer.host); });
-      field.appendChild(node);
+      node = makeOrb(field, peer, choosePeer, orbPoint(peer.host));
       orbNodes.set(peer.host, node);
     }
     node.querySelector("span").textContent = peer.alias || peer.host;
     node._peer = peer;
+    const state = bondState(peer);
+    setOrbState(node, state);
+    spokes.push({
+      x: Number(node.style.getPropertyValue("--x")) || 50,
+      y: Number(node.style.getPropertyValue("--y")) || 50,
+      state: state
+    });
   });
   orbNodes.forEach(function (node, host) {
     if (seen.has(host)) return;
     node.remove();
     orbNodes.delete(host);
   });
+  drawLines($("send-lines"), { x: 50, y: 50 }, spokes);
   if (empty) {
     empty.hidden = false;
     empty.textContent = seen.size ? "点一台电脑，发给它" : "附近没有其他电脑。两台都要打开 Elinks，并在两边点允许防火墙。";
   }
+}
+
+function renderRecvOrbs(bonds) {
+  const field = $("recv-universe");
+  if (!field) return;
+  lastBonds = bonds || [];
+  const had = field.classList.contains("has-orbs");
+  field.classList.toggle("has-orbs", lastBonds.length > 0);
+  if (had !== (lastBonds.length > 0)) {
+    requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
+  }
+  const seen = new Set();
+  const spokes = [];
+  lastBonds.forEach(function (peer) {
+    if (!peer || !peer.host) return;
+    seen.add(peer.host);
+    let node = recvOrbNodes.get(peer.host);
+    if (!node) {
+      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 38, yScale: 0.9 }));
+      recvOrbNodes.set(peer.host, node);
+    }
+    node.querySelector("span").textContent = peer.alias || peer.host;
+    node._peer = peer;
+    const state = bondState(peer);
+    setOrbState(node, state);
+    spokes.push({
+      x: Number(node.style.getPropertyValue("--x")) || 50,
+      y: Number(node.style.getPropertyValue("--y")) || 50,
+      state: state
+    });
+  });
+  recvOrbNodes.forEach(function (node, host) {
+    if (seen.has(host)) return;
+    node.remove();
+    recvOrbNodes.delete(host);
+  });
+  drawLines($("recv-lines"), { x: 50, y: 50 }, spokes);
 }
 
 async function refreshUniverse() {
@@ -607,50 +768,99 @@ function setLinkButton(label, busy) {
   btn.textContent = label || "建立发送链接";
 }
 
+function setHoldRow(until) {
+  const row = $("peer-fact-hold-row");
+  const label = holdLabel(until);
+  if (row) row.hidden = !label;
+  if ($("peer-fact-hold")) $("peer-fact-hold").textContent = label || "";
+}
+
 function closePeerModal() {
   stopLinkPoll();
   outboundLinkId = "";
+  modalRole = "send";
   if ($("peer-modal")) $("peer-modal").hidden = true;
   setLinkButton("建立发送链接", false);
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
+  if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+  setHoldRow(0);
 }
 
-function openPeerModal(peer) {
-  outboundPeer = peer;
-  outboundSession = "";
-  outboundBase = "";
-  outboundLinkId = "";
-  stopLinkPoll();
-  const alias = peer.alias || peer.host || "未命名";
+function fillPeerFacts(peer) {
+  const alias = (peer && (peer.alias || peer.host)) || "未命名";
   if ($("peer-modal-alias")) $("peer-modal-alias").textContent = alias;
   if ($("peer-fact-alias")) $("peer-fact-alias").textContent = alias;
-  if ($("peer-fact-ip")) $("peer-fact-ip").textContent = peer.host || "—";
-  if ($("peer-fact-port")) $("peer-fact-port").textContent = String(peer.port || 8730);
+  if ($("peer-fact-ip")) $("peer-fact-ip").textContent = (peer && peer.host) || "—";
+  if ($("peer-fact-port")) $("peer-fact-port").textContent = String((peer && peer.port) || 8730);
   if ($("peer-fact-tls")) {
-    $("peer-fact-tls").textContent = peer.httpsPort ? String(peer.httpsPort) : "无";
+    $("peer-fact-tls").textContent = peer && peer.httpsPort ? String(peer.httpsPort) : "无";
   }
-  setLinkButton("建立发送链接", false);
-  if ($("send-pick-files")) $("send-pick-files").hidden = true;
+}
+
+function openPeerModal(peer, role) {
+  outboundPeer = peer;
+  modalRole = role || "send";
+  stopLinkPoll();
+  fillPeerFacts(peer);
+  const recv = modalRole === "recv";
+  const bond = recv ? peer : liveSenderBond(peer && peer.host);
+  const linked = Boolean(bond && (bond.session || recv) && Number(bond.until || peer.until) > Date.now());
+  if (recv) {
+    outboundSession = "";
+    outboundBase = "";
+    outboundLinkId = "";
+    if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
+    if ($("send-pick-files")) $("send-pick-files").hidden = true;
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = false;
+    setHoldRow(peer && peer.until);
+  } else if (linked) {
+    outboundSession = bond.session;
+    outboundBase = peerBase(peer);
+    outboundLinkId = bond.id || "";
+    if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
+    if ($("send-pick-files")) $("send-pick-files").hidden = false;
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    setHoldRow(bond.until);
+  } else {
+    outboundSession = "";
+    outboundBase = "";
+    outboundLinkId = "";
+    setLinkButton("建立发送链接", false);
+    if ($("send-pick-files")) $("send-pick-files").hidden = true;
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    setHoldRow(0);
+  }
   if ($("peer-modal")) $("peer-modal").hidden = false;
+}
+
+function paintSendOrbs() {
+  renderOrbs([...orbNodes.values()].map(function (node) { return node._peer; }).filter(Boolean));
 }
 
 function applyLinkStatus(data) {
   if (!data || !data.ok) return;
   if (data.status === "pending") {
     setLinkButton("等待对方允许…", true);
+    paintSendOrbs();
     return;
   }
   if (data.status === "denied" || data.status === "expired") {
     stopLinkPoll();
+    outboundLinkId = "";
     setLinkButton(data.status === "denied" ? "对方拒绝了，再试一次" : "对方没有回应，再试一次", false);
+    paintSendOrbs();
     return;
   }
   if (data.status === "accepted" && data.session) {
     stopLinkPoll();
     outboundSession = data.session;
     outboundBase = peerBase(outboundPeer);
+    rememberSenderBond(outboundPeer, data);
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
+    setHoldRow(data.until);
+    paintSendOrbs();
   }
 }
 
@@ -698,7 +908,32 @@ function choosePeer(host) {
   const node = orbNodes.get(host);
   const peer = node && node._peer;
   if (!peer) return;
-  openPeerModal(peer);
+  openPeerModal(peer, "send");
+}
+
+function chooseRecvPeer(host) {
+  const node = recvOrbNodes.get(host);
+  const peer = node && node._peer;
+  if (!peer) return;
+  openPeerModal(peer, "recv");
+}
+
+function dropBond() {
+  const peer = outboundPeer;
+  if (!peer || !peer.id || modalRole !== "recv") return;
+  fetch("/api/link-drop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: peer.id })
+  }).then(function (res) { return res.json(); }).then(function (data) {
+    if (!data || !data.ok) return;
+    senderBonds.delete(peer.host);
+    persistBonds();
+    lastBonds = lastBonds.filter(function (row) { return row.id !== peer.id; });
+    closePeerModal();
+    renderRecvOrbs(lastBonds);
+    if (document.documentElement.classList.contains("is-send")) refreshUniverse();
+  }).catch(function () {});
 }
 
 function showIncomingLink(row) {
@@ -891,6 +1126,10 @@ if ($("peer-modal-close")) {
   $("peer-modal-close").addEventListener("click", function () { closePeerModal(); });
 }
 
+if ($("peer-modal-drop")) {
+  $("peer-modal-drop").addEventListener("click", function () { dropBond(); });
+}
+
 if ($("link-allow")) {
   $("link-allow").addEventListener("click", function () { respondLink(true); });
 }
@@ -953,6 +1192,9 @@ async function pollTransfers() {
   if (!LIVE) return;
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
   showLinkTab(data.pendingLinks || []);
+  liveSessions = new Set((data.active || []).map(function (item) { return item && item.session; }).filter(Boolean));
+  renderRecvOrbs(data.bonds || []);
+  if (document.documentElement.classList.contains("is-send")) paintSendOrbs();
   if (outboundActive) return;
   if (busyKind === "send" && !(data.active || []).length) return;
   const live = $("live-list");

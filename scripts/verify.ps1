@@ -75,6 +75,10 @@ try {
   if ($page.Content -match 'id="peer-modal-status"') { $needStart = $true }
   if ($page.Content -notmatch 'id="busy-pick-more"') { $needStart = $true }
   if ($page.Content -notmatch 'busy-hero') { $needStart = $true }
+  if ($page.Content -notmatch 'id="recv-universe"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
+  $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
+  if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
   if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
   $phonePeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing -TimeoutSec 2
@@ -300,6 +304,9 @@ try {
   if ($index -notmatch 'id="peer-modal-link"') { throw "send link button missing" }
   if ($index -notmatch 'id="link-allow"') { throw "allow link button missing" }
   if ($index -notmatch 'id="universe"') { throw "send universe missing" }
+  if ($index -notmatch 'id="recv-universe"') { throw "receive QR universe missing" }
+  if ($index -notmatch 'id="send-lines"' -or $index -notmatch 'id="recv-lines"') { throw "orb state lines missing" }
+  if ($index -notmatch 'id="peer-modal-drop"') { throw "receiver disconnect button missing" }
   if ($index -notmatch 'id="alias-name"') { throw "alias setting missing" }
   if ($index -notmatch 'id="discover-toggle"') { throw "discover toggle missing" }
   if ($index -notmatch 'id="tab-scan"') { throw "scan tab missing" }
@@ -317,6 +324,9 @@ try {
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
   if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
   if ($live -notmatch 'function requestLink') { throw "send page must request a link before picking files" }
+  if ($live -notmatch 'function drawLines') { throw "orb lines must be drawn between machines" }
+  if ($live -notmatch 'function renderRecvOrbs') { throw "receive QR page must show bonded orbs" }
+  if ($live -notmatch 'function dropBond') { throw "receiver must be able to drop a live bond" }
   if ($live -notmatch 'function setLinkButton') { throw "link handshake status must appear on the send button" }
   if ($live -notmatch 'function rememberOutbound') { throw "send progress must keep completed files after the batch" }
   if ($live -notmatch 'busy-pick-more') { throw "send progress must offer pick more files" }
@@ -334,6 +344,8 @@ try {
   if ($live -match 'info.linkMps \? String') { throw "zero linkMps must not hide the cap as a dash" }
   if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
+  if ($mainSrv -notmatch 'LINK_HOLD_MS = 60 \* 60 \* 1000') { throw "accepted links must persist for one hour" }
+  if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }
   if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }

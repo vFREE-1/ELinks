@@ -81,6 +81,8 @@ const indexPath = path.join(ROOT, "index.html");
 const index = fs.readFileSync(indexPath, "utf8");
 if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw new Error("receive/send tabs missing");
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
+if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");
+if (!index.includes('id="recv-universe"') || !index.includes('id="peer-modal-drop"')) throw new Error("receive-page orbs or disconnect missing");
 if (!index.includes('id="alias-name"') || !index.includes('id="discover-toggle"')) throw new Error("alias/discover settings missing");
 if (!index.includes('id="send-pick-files"')) throw new Error("send picker missing");
 if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");
@@ -100,6 +102,8 @@ if (!live.includes('busyKind === "send"')) throw new Error("send progress must n
 if (!live.includes("function setDeskMode")) throw new Error("desk mode switch missing");
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
+if (!live.includes("function drawLines") || !live.includes("function dropBond")) throw new Error("orb lines or receiver disconnect missing");
+if (!live.includes("function renderRecvOrbs") || !live.includes("elinks.bonds")) throw new Error("receive orbs or 1h bond cache missing");
 
 const snapshot = await json("GET", "/api/info");
 if (typeof snapshot.alias !== "string" || !snapshot.alias.trim()) throw new Error("info.alias missing");
@@ -163,6 +167,35 @@ try {
   if (allowRes.json.status !== "accepted") throw new Error("allow should accept the link");
   const allowSt = await json("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
   if (allowSt.status !== "accepted" || !allowSt.session) throw new Error("accepted link should yield a session");
+  if (!allowSt.until || allowSt.until < Date.now() + 50 * 60 * 1000) throw new Error("accepted link should stay valid for an hour");
+
+  const bonded = await json("GET", "/api/transfers");
+  if (!Array.isArray(bonded.bonds) || !bonded.bonds.some((row) => row.id === accepted.json.id && row.session === allowSt.session)) {
+    throw new Error("receiver should list the live 1h bond");
+  }
+
+  const reused = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "AllowBox",
+    host: "127.0.0.1"
+  })), { json: true });
+  if (reused.json.status !== "accepted" || reused.json.session !== allowSt.session) {
+    throw new Error("same host should reuse the accepted link within the hour");
+  }
+
+  const dropRes = await request("POST", "/api/link-drop", Buffer.from(JSON.stringify({ id: accepted.json.id })), { json: true });
+  if (!dropRes.json.ok || dropRes.json.status !== "dropped") throw new Error("receiver should be able to drop the bond");
+  const dropped = await request("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
+  if (dropped.status !== 404) throw new Error("dropped link should be gone");
+  const afterDrop = await json("GET", "/api/transfers");
+  if ((afterDrop.bonds || []).some((row) => row.id === accepted.json.id)) throw new Error("dropped bond must leave the receiver list");
+
+  const again = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "AllowBox",
+    host: "127.0.0.1"
+  })), { json: true });
+  if (again.json.status !== "pending") throw new Error("after drop the next link must handshake again");
 } finally {
   await json("POST", "/api/config", { alias: snapshot.alias, discoverable: true });
 }
