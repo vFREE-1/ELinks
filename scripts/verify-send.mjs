@@ -84,7 +84,7 @@ if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw 
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
 if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");
 if (!index.includes('id="recv-universe"') || !index.includes('id="peer-modal-drop"')) throw new Error("receive-page orbs or disconnect missing");
-if (!index.includes('class="recv-stage"')) throw new Error("receive QR must keep its original layout block");
+if (!index.includes('class="qr-slot"')) throw new Error("receive QR must keep its original layout block");
 if (!index.includes('id="alias-name"') || !index.includes('id="discover-toggle"')) throw new Error("alias/discover settings missing");
 if (!index.includes('id="send-pick-files"')) throw new Error("send picker missing");
 if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");

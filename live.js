@@ -653,13 +653,24 @@ function setOrbState(node, state) {
   node.classList.add(state || "idle");
 }
 
-function drawLines(svg, hub, spokes) {
+function edgePoint(hub, spoke, box) {
+  if (!box) return hub;
+  const dx = spoke.x - hub.x;
+  const dy = spoke.y - hub.y;
+  let t = 1;
+  if (dx) t = Math.min(t, box.halfW / Math.abs(dx));
+  if (dy) t = Math.min(t, box.halfH / Math.abs(dy));
+  return { x: hub.x + dx * t, y: hub.y + dy * t };
+}
+
+function drawLines(svg, hub, spokes, box) {
   if (!svg) return;
   while (svg.firstChild) svg.removeChild(svg.firstChild);
   (spokes || []).forEach(function (spoke) {
+    const start = edgePoint(hub, spoke, box);
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(hub.x));
-    line.setAttribute("y1", String(hub.y));
+    line.setAttribute("x1", String(start.x));
+    line.setAttribute("y1", String(start.y));
     line.setAttribute("x2", String(spoke.x));
     line.setAttribute("y2", String(spoke.y));
     line.setAttribute("class", "orb-line " + (spoke.state || "idle"));
@@ -746,7 +757,7 @@ function renderRecvOrbs(bonds) {
     seen.add(peer.host);
     let node = recvOrbNodes.get(peer.host);
     if (!node) {
-      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 42, yScale: 0.72 }));
+      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 40, yScale: 0.78 }));
       recvOrbNodes.set(peer.host, node);
     }
     node.querySelector("span").textContent = peer.alias || peer.host;
@@ -764,7 +775,7 @@ function renderRecvOrbs(bonds) {
     node.remove();
     recvOrbNodes.delete(host);
   });
-  drawLines($("recv-lines"), { x: 50, y: 50 }, spokes);
+  drawLines($("recv-lines"), { x: 50, y: 50 }, spokes, { halfW: 23, halfH: 28 });
 }
 
 async function refreshUniverse() {

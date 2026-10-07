@@ -79,7 +79,7 @@ try {
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
-  if ($page.Content -notmatch 'class="recv-stage"') { $needStart = $true }
+  if ($page.Content -notmatch 'class="qr-slot"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
@@ -407,7 +407,8 @@ try {
   if ($css -notmatch '\.stage \{[\s\S]{0,280}justify-content:\s*center') { throw "QR and caption should sit together in the center" }
   if ($css -match '\.stage-main \{[\s\S]{0,80}flex:\s*1') { throw "QR block should not stretch away from the caption" }
   if ($css -match 'recv-universe\.has-orbs') { throw "receive orbs must not resize the QR layout" }
-  if ($css -match '\.recv-universe \{[\s\S]{0,180}z-index:\s*3') { throw "receive orbs must sit behind the QR, not cover it" }
+  if ($css -match '\.recv-universe \{[\s\S]{0,220}z-index:\s*[3-9]') { throw "receive orbs must sit behind the QR, not cover it" }
+  if ($css -notmatch 'html\.is-desktop #qr \{[\s\S]{0,40}width:\s*248px') { throw "desktop receive QR must stay 248px" }
   if ($css -notmatch '\.recv-universe \.orb i \{[\s\S]{0,80}width:\s*26px') { throw "receive orbs must stay smaller than the send-page orbs" }
   if ($css -notmatch 'vector-effect:\s*non-scaling-stroke') { throw "orb lines must stay thin" }
   if ($css -notmatch 'html, body \{[\s\S]{0,120}overflow:\s*hidden') { throw "page must clip the native window scrollbar" }
