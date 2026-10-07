@@ -83,6 +83,7 @@ if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw 
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
 if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");
 if (!index.includes('id="recv-universe"') || !index.includes('id="peer-modal-drop"')) throw new Error("receive-page orbs or disconnect missing");
+if (!index.includes('class="recv-stage"')) throw new Error("receive QR must keep its original layout block");
 if (!index.includes('id="alias-name"') || !index.includes('id="discover-toggle"')) throw new Error("alias/discover settings missing");
 if (!index.includes('id="send-pick-files"')) throw new Error("send picker missing");
 if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");
@@ -109,6 +110,7 @@ if (!live.includes("function drawLines") || !live.includes("function dropBond"))
 if (!live.includes("function renderRecvOrbs") || !live.includes("elinks.bonds")) throw new Error("receive orbs or 1h bond cache missing");
 if (!live.includes("function clearDoneRecords")) throw new Error("completed list must clear display records");
 if (!live.includes("function openWifiModal") || live.includes("function showWifiQr")) throw new Error("wifi join must open a floating qr instead of swapping the receive code");
+if (live.includes("has-orbs")) throw new Error("receive orbs must not resize the QR layout");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
   throw new Error("busy nav must highlight 返回接收");

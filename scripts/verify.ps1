@@ -79,6 +79,7 @@ try {
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
+  if ($page.Content -notmatch 'class="recv-stage"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
@@ -401,6 +402,8 @@ try {
   if ($css -match 'letter-spacing:\s*-0\.0') { throw "negative headline tracking crowds CJK" }
   if ($css -notmatch '\.stage \{[\s\S]{0,280}justify-content:\s*center') { throw "QR and caption should sit together in the center" }
   if ($css -match '\.stage-main \{[\s\S]{0,80}flex:\s*1') { throw "QR block should not stretch away from the caption" }
+  if ($css -match 'recv-universe\.has-orbs') { throw "receive orbs must not resize the QR layout" }
+  if ($css -notmatch 'vector-effect:\s*non-scaling-stroke') { throw "orb lines must stay thin" }
   if ($css -notmatch 'html, body \{[\s\S]{0,120}overflow:\s*hidden') { throw "page must clip the native window scrollbar" }
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }
   if ($css -notmatch '\.brand \{[\s\S]{0,180}white-space:\s*nowrap') { throw "toolbar brand must stay on one row" }

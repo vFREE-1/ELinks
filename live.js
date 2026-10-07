@@ -653,6 +653,8 @@ function drawLines(svg, hub, spokes) {
     line.setAttribute("x2", String(spoke.x));
     line.setAttribute("y2", String(spoke.y));
     line.setAttribute("class", "orb-line " + (spoke.state || "idle"));
+    line.setAttribute("stroke-width", "1.25");
+    line.setAttribute("vector-effect", "non-scaling-stroke");
     svg.appendChild(line);
   });
 }
@@ -727,11 +729,6 @@ function renderRecvOrbs(bonds) {
   const field = $("recv-universe");
   if (!field) return;
   lastBonds = bonds || [];
-  const had = field.classList.contains("has-orbs");
-  field.classList.toggle("has-orbs", lastBonds.length > 0);
-  if (had !== (lastBonds.length > 0)) {
-    requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
-  }
   const seen = new Set();
   const spokes = [];
   lastBonds.forEach(function (peer) {
@@ -739,7 +736,7 @@ function renderRecvOrbs(bonds) {
     seen.add(peer.host);
     let node = recvOrbNodes.get(peer.host);
     if (!node) {
-      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 38, yScale: 0.9 }));
+      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 40, yScale: 0.82 }));
       recvOrbNodes.set(peer.host, node);
     }
     node.querySelector("span").textContent = peer.alias || peer.host;
