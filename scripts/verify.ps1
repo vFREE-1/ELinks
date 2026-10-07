@@ -250,6 +250,7 @@ try {
     throw "waiting ripples should keep six rings"
   }
   if ($index -match 'demo-list|海岸延时|#busy') { throw "demo waiting/transfer mock still in index.html" }
+  if ($index -notmatch 'id="net-path"') { throw "transfer path must sit beside the speed chip" }
   if ($index -notmatch 'id="tab-scan"') { throw "scan tab missing" }
   if ($index -notmatch 'id="tab-addr"') { throw "address tab missing" }
   if ($index -notmatch 'id="panel-scan"') { throw "scan panel missing" }
@@ -258,6 +259,8 @@ try {
   if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
+  if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
+  if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
@@ -304,6 +307,7 @@ try {
   if ($css -notmatch 'rings-off') { throw "animation off class missing" }
   if ($css -notmatch 'html.phone-page') { throw "phone page must override the desktop overflow clip" }
   if ($css -notmatch '\.pick-entry') { throw "phone upload entry style missing" }
+  if ($css -notmatch '\.net-path') { throw "speed chip must leave room for the transfer path" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'open-dir\?path=') { throw "open-dir must send the current save path" }
   if ($live -notmatch 'phone.html') { throw "scanned phone=1 links must open the phone page" }

@@ -39,6 +39,10 @@ export function pickLanIp(nics) {
   return pickHosts(nics).host;
 }
 
+export function pathLabel(path) {
+  return String(path) === "usb" ? "数据线" : "Wi-Fi";
+}
+
 export function parseCategory(text) {
   const rows = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   let publicNet = false;

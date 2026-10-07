@@ -34,6 +34,7 @@ async function boot() {
   if ($("app-version") && info.version) $("app-version").textContent = info.version;
   if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
   if ($("now-mps")) $("now-mps").textContent = "0";
+  showNetPath();
   $("today").textContent = "今天已接收 0 个文件";
   $("active-count").textContent = "等待发送";
   $("mbps").textContent = "0";
@@ -64,6 +65,7 @@ async function boot() {
       const prevUsbHost = info && info.usbHost;
       const prevAllow = info && info.needAllow;
       refreshLink().then(function () {
+        showNetPath();
         if (info && (info.host !== prevHost || info.usb !== prevUsb || info.usbHost !== prevUsbHost || info.needAllow !== prevAllow)) showPageQr();
       }).catch(function () {});
   }, 2500);
@@ -241,10 +243,24 @@ function randomPassword() {
   return out;
 }
 
+function showNetPath() {
+  const node = $("net-path");
+  if (!node) return;
+  const usb = Boolean(info && (info.path === "usb" || info.usb));
+  node.textContent = usb ? "数据线" : "Wi-Fi";
+  node.classList.toggle("usb", usb);
+  const chip = $("net-chip");
+  if (chip) {
+    chip.title = usb ? "已接数据线，USB 为传输通道" : "当前走 Wi-Fi / 网卡最高速度";
+  }
+  if ($("cap-mps")) $("cap-mps").textContent = info && info.linkMps ? String(info.linkMps) : "—";
+}
+
 async function refreshLink() {
   info = await fetch("/api/info").then(function (res) { return res.json(); });
   $("desk-host").value = info.phoneUrl || info.host;
   $("host").value = info.host;
+  showNetPath();
   const qr = await fetch("/api/qr-matrix").then(function (res) { return res.json(); });
   if (qr.matrix && qr.matrix.length) {
     pageMatrix = qr.matrix;

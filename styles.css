@@ -201,6 +201,19 @@ html.is-desktop .top-nav {
   white-space: nowrap;
 }
 
+.net-path {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+}
+
+.net-path.usb {
+  color: var(--blue);
+}
+
 .net-now {
   color: var(--ink);
   font-size: 12px;

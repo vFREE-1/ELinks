@@ -1,4 +1,4 @@
-import { inboundOpen, isUsbAddress, parseAllowResult, parseCategory, parseReachProbe, pickHosts, pickLanIp, shouldSwitchToUsb } from "../net.mjs";
+import { inboundOpen, isUsbAddress, parseAllowResult, parseCategory, parseReachProbe, pathLabel, pickHosts, pickLanIp, shouldSwitchToUsb } from "../net.mjs";
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -24,6 +24,8 @@ assert(shouldSwitchToUsb("192.168.1.22", { usbHost: "192.168.42.2" }) === true, 
 assert(shouldSwitchToUsb("192.168.42.2", { usbHost: "192.168.42.2" }) === false, "already on usb");
 assert(shouldSwitchToUsb("127.0.0.1", { usbHost: "192.168.42.2" }) === false, "desktop preview stays");
 assert(shouldSwitchToUsb("192.168.1.22", { usbHost: "" }) === false, "no switch without usb");
+assert(pathLabel("usb") === "数据线", "usb chip says cable");
+assert(pathLabel("wifi") === "Wi-Fi", "wifi chip says wifi");
 assert(isUsbAddress("172.20.10.2", "iPhone") === true, "iphone usb");
 assert(isUsbAddress("192.168.1.22", "WLAN") === false, "home wifi is not usb");
 assert(pickLanIp([]) === "127.0.0.1", "empty");
