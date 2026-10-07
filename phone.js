@@ -82,29 +82,40 @@ async function pair(fromForm) {
 
 function paint(items) {
   const box = $("send-list");
-  box.innerHTML = "";
+  if (!box) return;
   let sent = 0;
   let total = 0;
   let live = 0;
-  items.forEach(function (item) {
+  let done = 0;
+  items.forEach(function (item, index) {
     sent += item.sent || 0;
     total += item.size || 0;
-    if (!item.done) live += 1;
+    if (item.done && !item.error) done += 1;
+    else if (!item.done) live += 1;
+    let row = box.children[index];
+    if (!row) {
+      row = document.createElement("article");
+      row.className = "phone-row";
+      row.innerHTML = "<b></b><span></span><div class=\"line\"><i></i></div>";
+      box.appendChild(row);
+    }
     const ratio = item.size ? item.sent / item.size : 0;
-    const row = document.createElement("article");
-    row.className = "phone-row";
-    row.innerHTML = "<b></b><span></span><div class=\"line\"><i></i></div>";
     row.querySelector("b").textContent = item.name;
     row.querySelector("span").textContent = item.error === "cancelled"
       ? "已停止"
       : (item.error
         ? "没传上，请再选一次"
-        : (item.done ? "已传到电脑" : formatSize(item.sent) + " / " + formatSize(item.size)));
+        : (item.done ? "已传到电脑" : formatSize(item.sent || 0) + " / " + formatSize(item.size || 0)));
     row.querySelector("i").style.width = (Math.min(1, ratio) * 100).toFixed(1) + "%";
-    box.appendChild(row);
   });
+  while (box.children.length > items.length) box.removeChild(box.lastChild);
   const pct = total ? Math.round((sent / total) * 100) : 0;
-  $("send-lead").textContent = live ? ("正在上传 " + pct + "%") : "已经传到电脑";
+  if ($("send-pct")) $("send-pct").textContent = pct + "%";
+  if ($("send-fill")) $("send-fill").style.width = Math.min(100, pct) + "%";
+  if ($("send-count")) {
+    $("send-count").textContent = done + " / " + items.length + " · " + formatSize(sent) + " / " + formatSize(total);
+  }
+  if ($("send-lead")) $("send-lead").textContent = live ? "正在上传" : "已经传到电脑";
 }
 
 function queueFiles(list) {

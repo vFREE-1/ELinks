@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>传到电脑</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=set13" />
+  <link rel="stylesheet" href="styles.css?v=set14" />
 </head>
 <body>
   <main class="phone-app">
@@ -26,7 +26,12 @@
       <strong>选择照片和视频</strong>
     </label>
     <section class="phone-send" id="send" hidden>
-      <p id="send-lead">正在上传</p>
+      <div class="phone-meter">
+        <strong id="send-pct">0%</strong>
+        <p id="send-lead">正在上传</p>
+        <p class="phone-meter-sub" id="send-count">0 / 0</p>
+      </div>
+      <div class="phone-track" aria-hidden="true"><i id="send-fill"></i></div>
       <div id="send-list"></div>
       <button type="button" class="text" id="send-stop">停止这一批</button>
       <label class="pick-entry pick-more">
@@ -35,6 +40,6 @@
       </label>
     </section>
   </main>
-  <script type="module" src="phone.js?v=set13"></script>
+  <script type="module" src="phone.js?v=set14"></script>
 </body>
 </html>

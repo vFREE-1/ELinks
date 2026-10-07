@@ -1262,6 +1262,14 @@ html.phone-page body {
   height: auto;
   min-height: 100%;
   background: #fff;
+  scrollbar-width: thin;
+}
+
+html.phone-page::-webkit-scrollbar,
+html.phone-page body::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+  display: block;
 }
 
 .phone-app {
@@ -1360,18 +1368,66 @@ html.phone-page body {
   border: 1px solid rgba(31, 111, 235, 0.35);
 }
 
-.phone-send { margin-top: 4px; }
+.phone-send {
+  margin-top: 8px;
+}
+
+.phone-send[hidden] { display: none !important; }
+
+.phone-meter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0 0 10px;
+}
+
+.phone-meter strong {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-send #send-lead {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.phone-meter-sub {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-track {
+  height: 6px;
+  margin: 0 0 12px;
+  background: var(--track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.phone-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--blue);
+}
+
+#send-list {
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .phone-send #send-stop {
   display: block;
   margin: 14px 0 0;
-}
-
-.phone-send #send-lead {
-  margin: 0 0 10px;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: var(--tracking-title);
 }
 
 .phone-row {

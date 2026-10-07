@@ -178,6 +178,10 @@ try {
   if ($phonePage.Content -notmatch 'pick-entry') { throw "phone page must use a dedicated upload entry" }
   if ($phonePage.Content -notmatch 'id="file-more"') { throw "phone page must keep a second pick entry after sending" }
   if ($phonePage.Content -notmatch 'id="send-stop"') { throw "phone page must be able to cancel the session" }
+  if ($phonePage.Content -notmatch 'id="send-list"') { throw "phone page must show the upload list" }
+  if ($phonePage.Content -notmatch 'id="send-pct"') { throw "phone page must show overall upload percent" }
+  if ($phonePage.Content -notmatch 'id="send-fill"') { throw "phone page must show overall upload progress" }
+  if ($phonePage.Content -notmatch 'id="send-count"') { throw "phone page must show uploaded file counts" }
   if ($phonePage.Content -notmatch 'id="wechat-hint"') { throw "phone page must explain WeChat picker limits" }
   if ($phonePage.Content -match 'id="qr"') { throw "phone page must not include the waiting qr" }
   if ($phonePage.Content -match 'id="allow-lan"') { throw "phone page must not include allow-lan" }
@@ -366,6 +370,7 @@ try {
   if ($phoneJs -notmatch '/api/cancel') { throw "phone page must tell the receiver to drop the session" }
   if ($phoneJs -notmatch 'MicroMessenger') { throw "phone page must detect WeChat in-app browser" }
   if ($phoneJs -notmatch 'function takeInputFiles') { throw "phone page must copy the FileList before clearing the input" }
+  if ($phoneJs -notmatch 'send-pct') { throw "phone page must update overall upload percent" }
   if ($phoneJs -match 'const files = \$\("file-input"\)\.files;\s*\$\("file-input"\)\.value') { throw "clearing the live FileList drops the selection on Android" }
   if ($sendMod.Content -notmatch 'slices: null') { throw "uploader must not wait to resume every file before the first PUT" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
