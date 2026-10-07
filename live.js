@@ -598,6 +598,16 @@ function persistBonds() {
   try { localStorage.setItem(BOND_STORE, JSON.stringify(rows)); } catch (err) {}
 }
 
+function forgetSenderBond(host) {
+  if (host) senderBonds.delete(host);
+  persistBonds();
+  if (outboundPeer && outboundPeer.host === host) {
+    outboundSession = "";
+    outboundBase = "";
+    outboundLinkId = "";
+  }
+}
+
 function rememberSenderBond(peer, data) {
   if (!peer || !peer.host || !data || !data.session) return;
   const until = Number(data.until) || (Date.now() + 60 * 60 * 1000);
@@ -961,8 +971,7 @@ function dropBond() {
     body: JSON.stringify({ id: peer.id })
   }).then(function (res) { return res.json(); }).then(function (data) {
     if (!data || !data.ok) return;
-    senderBonds.delete(peer.host);
-    persistBonds();
+    forgetSenderBond(peer.host);
     lastBonds = lastBonds.filter(function (row) { return row.id !== peer.id; });
     closePeerModal();
     renderRecvOrbs(lastBonds);
@@ -1123,11 +1132,14 @@ function startOutbound(files) {
       onProgress: renderOutbound
     });
   }).then(function (items) {
+    const blocked = (items || []).some(function (item) { return item && item.error === "cancelled"; });
+    if (blocked && outboundPeer) forgetSenderBond(outboundPeer.host);
     rememberOutbound(items);
     outboundActive = false;
     setBusyDirection("send");
     renderOutbound([]);
   }).catch(function () {
+    if (outboundPeer) forgetSenderBond(outboundPeer.host);
     outboundActive = false;
     setBusyDirection("send");
     renderOutbound([]);

@@ -42,8 +42,19 @@ function putSlice(item, start, end, session, onProgress) {
     xhr.onload = function () {
       const idx = active.xhrs.indexOf(xhr);
       if (idx >= 0) active.xhrs.splice(idx, 1);
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error("upload " + xhr.status));
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      if (xhr.status === 403 || xhr.status === 409) {
+        active.cancelled = true;
+        active.xhrs.slice().forEach(function (open) {
+          try { open.abort(); } catch (err) { /* ignore */ }
+        });
+        reject(new Error("cancelled"));
+        return;
+      }
+      reject(new Error("upload " + xhr.status));
     };
     xhr.onerror = function () {
       const idx = active.xhrs.indexOf(xhr);

@@ -110,6 +110,9 @@ if (!live.includes("function drawLines") || !live.includes("function dropBond"))
 if (!live.includes("function renderRecvOrbs") || !live.includes("elinks.bonds")) throw new Error("receive orbs or 1h bond cache missing");
 if (!live.includes("function clearDoneRecords")) throw new Error("completed list must clear display records");
 if (!live.includes("function openWifiModal") || live.includes("function showWifiQr")) throw new Error("wifi join must open a floating qr instead of swapping the receive code");
+if (!live.includes("function forgetSenderBond")) throw new Error("sender must forget a dropped or expired bond");
+const sendSrc = fs.readFileSync(path.join(ROOT, "send.mjs"), "utf8");
+if (!sendSrc.includes("xhr.status === 403 || xhr.status === 409")) throw new Error("sender must stop when the receiver voids the session");
 if (live.includes("has-orbs")) throw new Error("receive orbs must not resize the QR layout");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
@@ -194,8 +197,95 @@ try {
     throw new Error("same host should reuse the accepted link within the hour");
   }
 
-  const dropRes = await request("POST", "/api/link-drop", Buffer.from(JSON.stringify({ id: accepted.json.id })), { json: true });
-  if (!dropRes.json.ok || dropRes.json.status !== "dropped") throw new Error("receiver should be able to drop the bond");
+  const receivedDir = path.join(ROOT, "received");
+  function insideRepo(target) {
+    const prefix = ROOT.toLowerCase() + path.sep;
+    const full = path.resolve(target).toLowerCase();
+    return full === ROOT.toLowerCase() || full.startsWith(prefix);
+  }
+  function rmInside(target) {
+    if (fs.existsSync(target) && insideRepo(target)) fs.unlinkSync(target);
+  }
+
+  const holdName = "verify-hold.bin";
+  const holdPath = path.join(receivedDir, holdName);
+  rmInside(holdPath);
+  const holdBody = Buffer.alloc(64, 7);
+  const holdPut = await request("PUT", "/api/upload?" + new URLSearchParams({
+    session: allowSt.session,
+    name: holdName,
+    size: String(holdBody.length),
+    offset: "0"
+  }), holdBody);
+  if (!holdPut.json.ok || !holdPut.json.done) throw new Error("accepted session should receive files");
+  if (!fs.existsSync(holdPath)) throw new Error("accepted session should save the file");
+
+  const airName = "verify-drop-inflight.bin";
+  const airPath = path.join(receivedDir, airName);
+  const airPart = airPath + ".part";
+  rmInside(airPath);
+  rmInside(airPart);
+  rmInside(airPart + ".map");
+  const airSize = 4 * 1024 * 1024;
+  const airResult = await new Promise((resolve) => {
+    const req = http.request({
+      hostname: HOST,
+      port: PORT,
+      method: "PUT",
+      path: "/api/upload?" + new URLSearchParams({
+        session: allowSt.session,
+        name: airName,
+        size: String(airSize),
+        offset: "0"
+      }),
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": airSize
+      }
+    }, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        const raw = Buffer.concat(chunks).toString("utf8") || "{}";
+        let parsed = {};
+        try { parsed = JSON.parse(raw); } catch { /* ignore */ }
+        resolve({ status: res.statusCode, json: parsed });
+      });
+    });
+    req.on("error", () => resolve({ status: 0, json: { ok: false, error: "reset" } }));
+    req.write(Buffer.alloc(128 * 1024, 1));
+    json("POST", "/api/link-drop", { id: accepted.json.id }).then(() => {
+      try {
+        req.write(Buffer.alloc(airSize - 128 * 1024, 2));
+        req.end();
+      } catch {
+        resolve({ status: 0, json: { ok: false, error: "reset" } });
+      }
+    }).catch(() => {
+      try { req.destroy(); } catch { /* ignore */ }
+      resolve({ status: 0, json: { ok: false, error: "reset" } });
+    });
+  });
+  if (airResult.json && airResult.json.ok && airResult.json.done) {
+    throw new Error("drop must stop an in-flight upload from finishing");
+  }
+  if (fs.existsSync(airPath)) throw new Error("dropped in-flight upload must not save the file");
+  rmInside(airPart);
+  rmInside(airPart + ".map");
+
+  const blocked = await request("PUT", "/api/upload?" + new URLSearchParams({
+    session: allowSt.session,
+    name: "verify-hold-blocked.bin",
+    size: "8",
+    offset: "0"
+  }), Buffer.alloc(8, 9));
+  if (blocked.status !== 409 && blocked.status !== 403) throw new Error("dropped session must not accept more uploads");
+  if (blocked.json && blocked.json.ok) throw new Error("dropped session must not accept more uploads");
+  const resumeDead = await request("GET", "/api/resume?session=" + encodeURIComponent(allowSt.session) + "&name=x.bin&size=8");
+  if (resumeDead.status !== 403 && resumeDead.status !== 409) throw new Error("dropped session must not resume");
+  if (!fs.existsSync(holdPath)) throw new Error("drop must not delete files already saved");
+  rmInside(holdPath);
+
   const dropped = await request("GET", "/api/link-status?id=" + encodeURIComponent(accepted.json.id));
   if (dropped.status !== 404) throw new Error("dropped link should be gone");
   const afterDrop = await json("GET", "/api/transfers");

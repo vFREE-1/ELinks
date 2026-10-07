@@ -267,19 +267,46 @@ function safeName(name) {
   return base.slice(0, 180);
 }
 
+const LINK_HOLD_MS = 60 * 60 * 1000;
+
+function voidSession(session) {
+  const id = String(session || "");
+  if (!id) return;
+  const rec = sessions.get(id);
+  if (rec) rec.cancelled = true;
+  const gone = [];
+  for (const [key, item] of transfers) {
+    if (!String(key).startsWith(id + ":") || item.finalized) continue;
+    gone.push(item);
+    transfers.delete(key);
+  }
+  gone.forEach((item) => {
+    if (item.reqs) {
+      item.reqs.forEach((sock) => {
+        try { sock.destroy(); } catch { /* ignore */ }
+      });
+    }
+    try { if (item.part && inside(saveRoot(), item.part)) fs.unlinkSync(item.part); } catch { /* ignore */ }
+    try {
+      const map = item.part ? mapFile(item.part) : "";
+      if (map && inside(saveRoot(), map)) fs.unlinkSync(map);
+    } catch { /* ignore */ }
+  });
+}
+
 function sessionRec(id) {
   const rec = sessions.get(id);
   if (!rec || rec.cancelled) return null;
-  if (rec.until && Date.now() > rec.until) return null;
+  if (rec.until && Date.now() > rec.until) {
+    voidSession(id);
+    return null;
+  }
   return rec;
 }
 
-const LINK_HOLD_MS = 60 * 60 * 1000;
-
 function dropLinkSession(row) {
   if (!row || !row.session) return;
-  const rec = sessions.get(row.session);
-  if (rec) rec.cancelled = true;
+  voidSession(row.session);
 }
 
 function expireLinks() {
@@ -485,23 +512,7 @@ async function serveStatic(res, urlPath) {
 async function cancelSession(session) {
   const rec = sessions.get(session);
   if (!rec) return { ok: false, error: "no session" };
-  rec.cancelled = true;
-  const gone = [];
-  for (const [key, item] of transfers) {
-    if (!String(key).startsWith(session + ":") || item.finalized) continue;
-    gone.push(item);
-    transfers.delete(key);
-  }
-  gone.forEach((item) => {
-    if (item.reqs) item.reqs.forEach((sock) => {
-      try { sock.destroy(); } catch { /* ignore */ }
-    });
-    try { if (item.part && inside(saveRoot(), item.part)) fs.unlinkSync(item.part); } catch { /* ignore */ }
-    try {
-      const map = item.part ? mapFile(item.part) : "";
-      if (map && inside(saveRoot(), map)) fs.unlinkSync(map);
-    } catch { /* ignore */ }
-  });
+  voidSession(session);
   return { ok: true };
 }
 
@@ -586,6 +597,10 @@ async function handleUpload(req, res, url) {
     if (size > 0) {
       let incoming = 0;
       written = await writeRange(req, item.part, offset, (n) => {
+        if (!sessionRec(session)) {
+          try { req.destroy(); } catch { /* ignore */ }
+          return;
+        }
         incoming += n;
         bumpSpeed(item, n);
         item.received = Math.min(size, rangeBytes(item.ranges) + incoming);
@@ -601,8 +616,12 @@ async function handleUpload(req, res, url) {
     }
     throw err;
   } finally {
-    item.reqs.delete(req);
+    if (item && item.reqs) item.reqs.delete(req);
     stats.inflight = Math.max(0, stats.inflight - 1);
+  }
+  if (!sessionRec(session)) {
+    sendJson(res, { ok: false, error: "cancelled" }, 409);
+    return;
   }
   stats.bytes += written;
   await withLock(`${item.id}:meta`, async () => {
@@ -644,7 +663,8 @@ async function handleRequest(req, res) {
         adaptive: true,
         tls: httpsReady,
         discover: Boolean(discoverHub),
-        clearDone: true
+        clearDone: true,
+        sessionHold: true
       });
       return;
     }
@@ -1013,6 +1033,12 @@ export function startServer() {
   currentLink().catch(() => {});
   probeNicMps();
   server.maxConnections = 128;
+  if (!globalThis.__elinksHoldTimer) {
+    globalThis.__elinksHoldTimer = setInterval(() => {
+      try { expireLinks(); } catch { /* ignore */ }
+    }, 15000);
+    if (typeof globalThis.__elinksHoldTimer.unref === "function") globalThis.__elinksHoldTimer.unref();
+  }
   if (server.listening) {
     linkMps();
     startTlsAndDiscover();

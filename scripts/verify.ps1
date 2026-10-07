@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -365,6 +365,8 @@ try {
   if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
   if ($mainSrv -notmatch '/api/transfers-clear') { throw "clearing completed records must not touch saved files" }
+  if ($mainSrv -notmatch 'function voidSession') { throw "drop and expiry must void the upload session" }
+  if ($mainSrv -notmatch 'voidSession\(id\)') { throw "expired sessions must stop in-flight uploads" }
   if ($mainSrv -notmatch 'LINK_HOLD_MS = 60 \* 60 \* 1000') { throw "accepted links must persist for one hour" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
