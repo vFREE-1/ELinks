@@ -396,26 +396,29 @@ html.is-desktop #qr {
   left: 50%;
   top: 50%;
   z-index: 1;
-  width: 560px;
-  height: 460px;
+  width: 720px;
+  height: 520px;
   transform: translate(-50%, -50%);
   pointer-events: none;
   overflow: visible;
 }
 
 .recv-universe .orb {
-  width: 48px;
+  width: 56px;
   pointer-events: auto;
   animation: none;
   transform: translate(-50%, -50%);
 }
 
 .recv-universe .orb i {
-  width: 26px;
-  height: 26px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 0 10px rgba(87, 199, 255, 0.4);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.recv-universe .orb i svg {
+  width: 20px;
+  height: 20px;
 }
 
 .recv-universe .orb span {
@@ -445,7 +448,7 @@ html.is-desktop #qr {
 
 .orb-line.idle { stroke: #d4d7de; }
 .orb-line.pending { stroke: #f5a524; }
-.orb-line.linked { stroke: #1f6feb; }
+.orb-line.linked,
 .orb-line.live { stroke: #34c759; }
 
 .stage .universe-empty,
@@ -483,19 +486,28 @@ html.is-desktop #qr {
 }
 
 .orb i {
-  display: block;
+  display: grid;
+  place-items: center;
   width: 54px;
   height: 54px;
   margin: 0 auto;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
-    radial-gradient(circle at 50% 46%, #57c7ff 0 36%, #1f6feb 72%, #0b4fbf 100%);
+  border-radius: 16px;
+  background: #fff;
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 0 22px rgba(87, 199, 255, 0.55),
-    0 8px 18px rgba(31, 111, 235, 0.18);
+    0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 8px 18px rgba(15, 23, 42, 0.08);
 }
+
+.orb i svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.host-bezel,
+.host-stand,
+.host-base { fill: #1f6feb; }
+.host-screen { fill: #e8f1ff; }
 
 .orb span {
   display: block;
@@ -520,45 +532,61 @@ html.is-desktop #qr {
 }
 
 .orb.self i {
-  width: 42px;
-  height: 42px;
-  opacity: 0.88;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.4) inset,
-    0 0 28px rgba(87, 199, 255, 0.4);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  opacity: 0.92;
 }
+
+.orb.self i svg { width: 24px; height: 24px; }
+
+.orb.self .host-bezel,
+.orb.self .host-stand,
+.orb.self .host-base { fill: #8e8e93; }
+.orb.self .host-screen { fill: #f2f2f7; }
 
 .orb.self span { color: var(--muted); font-weight: 500; }
 
+.orb.idle .host-bezel,
+.orb.idle .host-stand,
+.orb.idle .host-base { fill: #c7c9ce; }
+.orb.idle .host-screen { fill: #f4f5f7; }
+
+.orb.pending .host-bezel,
+.orb.pending .host-stand,
+.orb.pending .host-base { fill: #f5a524; }
+.orb.pending .host-screen { fill: #fff6e5; }
+
 .orb.pending i {
-  background:
-    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
-    radial-gradient(circle at 50% 46%, #ffe3a8 0 36%, #f5a524 72%, #c47b10 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 0 22px rgba(245, 165, 36, 0.55);
+    0 0 0 1px rgba(245, 165, 36, 0.28),
+    0 8px 16px rgba(245, 165, 36, 0.16);
 }
 
-.orb.linked i {
+.orb.linked .host-bezel,
+.orb.linked .host-stand,
+.orb.linked .host-base,
+.orb.live .host-bezel,
+.orb.live .host-stand,
+.orb.live .host-base { fill: #34c759; }
+.orb.linked .host-screen,
+.orb.live .host-screen { fill: #e8f8ec; }
+
+.orb.linked i,
+.orb.live i {
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 0 26px rgba(31, 111, 235, 0.7);
+    0 0 0 1px rgba(52, 199, 89, 0.28),
+    0 8px 16px rgba(52, 199, 89, 0.16);
 }
 
 .orb.live i {
-  background:
-    radial-gradient(circle at 32% 28%, #fff 0 10%, transparent 42%),
-    radial-gradient(circle at 50% 46%, #b8f0c8 0 36%, #34c759 72%, #1f8f44 100%);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 0 22px rgba(52, 199, 89, 0.55);
+    0 0 0 1px rgba(52, 199, 89, 0.35),
+    0 0 18px rgba(52, 199, 89, 0.28);
 }
 
 .orb:not(.self):hover i {
-  transform: scale(1.06);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset,
-    0 0 28px rgba(87, 199, 255, 0.75);
+  transform: scale(1.05);
 }
 
 @keyframes orb-drift {
@@ -634,6 +662,12 @@ html.is-desktop #qr {
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.35;
+}
+
+.stage .link-card #link-queue {
+  margin: -4px 0 12px;
+  color: #1f6feb;
+  font-size: 13px;
 }
 
 .stage .link-card p,

@@ -671,7 +671,8 @@ async function handleRequest(req, res) {
         clearDone: true,
         sessionHold: true,
         sessionDrain: true,
-        linkExtend: true
+        linkExtend: true,
+        hostIcon: true
       });
       return;
     }

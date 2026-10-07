@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send16" />
+  <link rel="stylesheet" href="styles.css?v=send17" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -105,6 +105,7 @@
         <div class="link-card" id="link-card">
           <h2>连接请求</h2>
           <p id="link-empty">现在没有电脑要发文件过来。</p>
+          <p id="link-queue" hidden></p>
           <div id="link-detail" hidden>
             <dl class="modal-facts">
               <div><dt>名称</dt><dd id="link-alias"></dd></div>
@@ -256,6 +257,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send7"></script>
-  <script src="live.js?v=send21"></script>
+  <script src="live.js?v=send22"></script>
 </body>
 </html>

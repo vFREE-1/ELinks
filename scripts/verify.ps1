@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -81,6 +81,7 @@ try {
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
   if ($page.Content -notmatch 'class="qr-slot"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="link-queue"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
@@ -415,7 +416,14 @@ try {
   if ($css -match 'recv-universe\.has-orbs') { throw "receive orbs must not resize the QR layout" }
   if ($css -match '\.recv-universe \{[\s\S]{0,220}z-index:\s*[3-9]') { throw "receive orbs must sit behind the QR, not cover it" }
   if ($css -notmatch 'html\.is-desktop #qr \{[\s\S]{0,40}width:\s*248px') { throw "desktop receive QR must stay 248px" }
-  if ($css -notmatch '\.recv-universe \.orb i \{[\s\S]{0,80}width:\s*26px') { throw "receive orbs must stay smaller than the send-page orbs" }
+  if ($css -notmatch '\.recv-universe \.orb i \{[\s\S]{0,80}width:\s*32px') { throw "receive host icons must stay smaller than the send-page icons" }
+  if ($css -notmatch '\.orb-line\.linked,[\s\S]{0,40}\.orb-line\.live \{ stroke:\s*#34c759') { throw "connected host lines must be green" }
+  if ($css -notmatch 'host-bezel') { throw "hosts must use the computer icon, not a solid orb" }
+  if ($live -notmatch 'const HOST_ICON') { throw "host icon mark missing" }
+  if ($live -notmatch 'function recvOrbPoint') { throw "receive hosts must sit farther from the QR" }
+  if ($live -notmatch 'id="link-queue"' -and $index -notmatch 'id="link-queue"') { throw "queued authorizations must show a remaining count" }
+  if ($index -notmatch 'id="link-queue"') { throw "authorization queue copy missing" }
+  if ($live -match 'function respondLink[\s\S]{0,500}setMode\(true\)') { throw "allowing one host must not jump away while others are still waiting" }
   if ($css -notmatch 'vector-effect:\s*non-scaling-stroke') { throw "orb lines must stay thin" }
   if ($css -notmatch 'html, body \{[\s\S]{0,120}overflow:\s*hidden') { throw "page must clip the native window scrollbar" }
   if ($css -notmatch '::-webkit-scrollbar') { throw "custom scrollbar missing" }

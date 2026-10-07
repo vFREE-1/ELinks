@@ -30,6 +30,7 @@ async function boot() {
     }
   }).catch(function () {});
   info = await fetch("/api/info").then(function (res) { return res.json(); });
+  if ($("orb-self")) fillHostMark($("orb-self").querySelector("i"));
   if (info.lanes) MAX_CONN = info.lanes;
   LINKS.memory.host = info.host;
   LINKS.memory.path = info.savePath;
@@ -569,6 +570,24 @@ function orbPoint(host, opts) {
   };
 }
 
+function recvOrbPoint(host, index) {
+  const n = hashStr(host);
+  const side = index % 2 === 0 ? -1 : 1;
+  const row = Math.floor(index / 2);
+  const y = 50 + (row - 0.4) * 12 + ((n % 5) - 2) * 1.4;
+  return {
+    x: Math.max(8, Math.min(92, 50 + side * (52 + (n % 4)))),
+    y: Math.max(36, Math.min(64, y))
+  };
+}
+
+const HOST_ICON = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect class="host-bezel" x="5" y="4.2" width="22" height="16.2" rx="3.2"/><rect class="host-screen" x="7.1" y="6.3" width="17.8" height="12" rx="1.6"/><path class="host-stand" d="M14.2 20.4h3.6l1.7 3.4h-7z"/><rect class="host-base" x="11" y="23.6" width="10" height="1.8" rx=".9"/></svg>';
+
+function fillHostMark(node) {
+  if (!node || node.querySelector("svg")) return;
+  node.innerHTML = HOST_ICON;
+}
+
 function pad2(n) {
   return (n < 10 ? "0" : "") + n;
 }
@@ -710,7 +729,9 @@ function makeOrb(field, peer, clickHost, point) {
   node.style.setProperty("--y", point.y.toFixed(1));
   node.style.animationDelay = "-" + ((seed % 17) * 0.37).toFixed(2) + "s";
   node.style.animationDuration = (7.2 + (seed % 5) * 0.7).toFixed(1) + "s";
-  node.appendChild(document.createElement("i"));
+  const mark = document.createElement("i");
+  fillHostMark(mark);
+  node.appendChild(mark);
   node.appendChild(document.createElement("span"));
   node.addEventListener("click", function () { clickHost(peer.host); });
   field.appendChild(node);
@@ -775,7 +796,7 @@ function renderRecvOrbs(bonds) {
     seen.add(peer.host);
     let node = recvOrbNodes.get(peer.host);
     if (!node) {
-      node = makeOrb(field, peer, chooseRecvPeer, orbPoint(peer.host, { minR: 40, yScale: 0.78 }));
+      node = makeOrb(field, peer, chooseRecvPeer, recvOrbPoint(peer.host, seen.size - 1));
       recvOrbNodes.set(peer.host, node);
     }
     node.querySelector("span").textContent = peer.alias || peer.host;
@@ -790,7 +811,7 @@ function renderRecvOrbs(bonds) {
     node.remove();
     recvOrbNodes.delete(host);
   });
-  drawLines($("recv-lines"), { x: 50, y: 50 }, spokes, { halfW: 23, halfH: 28 });
+  drawLines($("recv-lines"), { x: 50, y: 50 }, spokes, { halfW: 19, halfH: 26 });
 }
 
 async function refreshUniverse() {
@@ -1027,11 +1048,15 @@ function dropBond() {
   }).catch(function () {});
 }
 
-function showIncomingLink(row) {
+function showIncomingLink(row, extra) {
   currentIncomingId = row && row.id ? row.id : "";
   const has = Boolean(currentIncomingId);
   if ($("link-empty")) $("link-empty").hidden = has;
   if ($("link-detail")) $("link-detail").hidden = !has;
+  if ($("link-queue")) {
+    $("link-queue").hidden = !has || extra < 1;
+    $("link-queue").textContent = extra > 0 ? ("后面还有 " + extra + " 台电脑在等授权") : "";
+  }
   if (!has) return;
   if ($("link-alias")) $("link-alias").textContent = row.alias || "未命名";
   if ($("link-host")) $("link-host").textContent = row.host || "—";
@@ -1043,29 +1068,41 @@ function showLinkTab(pending) {
   if (!tab) return;
   const list = pending || [];
   tab.hidden = list.length === 0;
+  tab.textContent = list.length > 1 ? ("连接请求 · " + list.length) : "连接请求";
   if (!list.length) {
-    showIncomingLink(null);
+    showIncomingLink(null, 0);
     if (document.documentElement.classList.contains("is-link")) setDeskMode("recv");
     return;
   }
   const fresh = list.filter(function (row) { return !seenLinkIds.has(row.id); });
   list.forEach(function (row) { seenLinkIds.add(row.id); });
-  showIncomingLink(list[0]);
-  if (fresh.length) setDeskMode("link");
+  const current = list.some(function (row) { return row.id === currentIncomingId; })
+    ? list.find(function (row) { return row.id === currentIncomingId; })
+    : list[0];
+  showIncomingLink(current, list.length - 1);
+  if (fresh.length) {
+    LINKS.setMode(false);
+    setDeskMode("link");
+  }
 }
 
 function respondLink(allow) {
   if (!currentIncomingId) return;
+  const id = currentIncomingId;
+  currentIncomingId = "";
   fetch("/api/link-respond", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: currentIncomingId, allow: allow })
+    body: JSON.stringify({ id: id, allow: allow })
   }).then(function (res) { return res.json(); }).then(function (data) {
-    if (data && data.ok && allow) {
-      setBusyDirection("recv");
-      LINKS.setMode(true);
+    if (!data || !data.ok) {
+      currentIncomingId = id;
+      return;
     }
-  }).catch(function () {});
+    pollTransfers();
+  }).catch(function () {
+    currentIncomingId = id;
+  });
 }
 
 function setBusyDirection(kind) {
@@ -1370,7 +1407,7 @@ async function pollTransfers() {
   $("active-count").textContent = (data.active || []).length ? (data.active.length + " 个进行中") : "0 个进行中";
   $("today").textContent = "今天已接收 " + (data.done || []).length + " 个文件";
   syncBusyEmpty();
-  if ((data.active || []).length) {
+  if ((data.active || []).length && !(data.pendingLinks || []).length) {
     setBusyDirection("recv");
     LINKS.setMode(true);
   }

@@ -108,6 +108,9 @@ if (!live.includes('busyKind === "send"')) throw new Error("send progress must n
 if (!live.includes("function setDeskMode")) throw new Error("desk mode switch missing");
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
+if (!live.includes("const HOST_ICON") || !live.includes("function recvOrbPoint")) throw new Error("host icon and receive spacing missing");
+if (!index.includes('id="link-queue"')) throw new Error("queued authorizations must show remaining PCs");
+if (/function respondLink[\s\S]{0,500}setMode\(true\)/.test(live)) throw new Error("allowing one host must not jump to the receive list");
 if (!live.includes("function drawLines") || !live.includes("function dropBond")) throw new Error("orb lines or receiver disconnect missing");
 if (!live.includes("function renderRecvOrbs") || !live.includes("elinks.bonds")) throw new Error("receive orbs or 1h bond cache missing");
 if (!live.includes("function clearDoneRecords")) throw new Error("completed list must clear display records");
@@ -166,6 +169,29 @@ try {
   if (!Array.isArray(listed.pendingLinks) || !listed.pendingLinks.some((row) => row.id === pending.json.id)) {
     throw new Error("pending link should appear for the receiver");
   }
+
+  const extraA = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "QueueA",
+    host: "10.8.0.1",
+    port: 8730
+  })), { json: true });
+  const extraB = await request("POST", "/api/link", Buffer.from(JSON.stringify({
+    token: snapshot.token,
+    alias: "QueueB",
+    host: "10.8.0.2",
+    port: 8730
+  })), { json: true });
+  const queued = await json("GET", "/api/transfers");
+  if (!queued.pendingLinks.some((row) => row.id === extraA.json.id) || !queued.pendingLinks.some((row) => row.id === extraB.json.id)) {
+    throw new Error("several PCs should be able to request authorization at once");
+  }
+  const allowA = await request("POST", "/api/link-respond", Buffer.from(JSON.stringify({ id: extraA.json.id, allow: true })), { json: true });
+  if (allowA.json.status !== "accepted") throw new Error("first queued host should still be allow-able");
+  const afterAllow = await json("GET", "/api/transfers");
+  if (afterAllow.pendingLinks.some((row) => row.id === extraA.json.id)) throw new Error("allowed host should leave the authorization queue");
+  if (!afterAllow.pendingLinks.some((row) => row.id === extraB.json.id)) throw new Error("the next host must stay waiting after one allow");
+  if (!afterAllow.bonds.some((row) => row.id === extraA.json.id)) throw new Error("allowed host should become a live bond while others wait");
 
   const denied = await request("POST", "/api/link", Buffer.from(JSON.stringify({
     token: snapshot.token,
