@@ -371,6 +371,7 @@ try {
   if ($phoneJs -notmatch 'MicroMessenger') { throw "phone page must detect WeChat in-app browser" }
   if ($phoneJs -notmatch 'function takeInputFiles') { throw "phone page must copy the FileList before clearing the input" }
   if ($phoneJs -notmatch 'send-pct') { throw "phone page must update overall upload percent" }
+  if ($phoneJs -notmatch 'AbortController') { throw "phone page must not wait forever on info" }
   if ($phoneJs -match 'const files = \$\("file-input"\)\.files;\s*\$\("file-input"\)\.value') { throw "clearing the live FileList drops the selection on Android" }
   if ($sendMod.Content -notmatch 'slices: null') { throw "uploader must not wait to resume every file before the first PUT" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
@@ -384,6 +385,8 @@ try {
   if ($mainSrv -notmatch '/api/cancel') { throw "receiver must cancel a session" }
   if ($mainSrv -notmatch 'HTTPS_PORT') { throw "receiver must listen on https" }
   if ($mainSrv -notmatch 'startDiscover') { throw "receiver must announce itself on the lan" }
+  if ($mainSrv -match 'execFileSync') { throw "receiver must not freeze on sync powershell during info" }
+  if ($mainSrv -notmatch 'peekLink') { throw "info must answer from cached wifi link" }
   node (Join-Path $RootFull "scripts\verify-pack.mjs")
   if ($LASTEXITCODE -ne 0) { throw "pack config verify failed" }
 

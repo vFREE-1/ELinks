@@ -122,6 +122,11 @@ function publicCache() {
   return { ssid: cache.ssid, wifiJoin: cache.wifiJoin, connected: cache.connected };
 }
 
+export function peekLink() {
+  currentLink().catch(() => {});
+  return publicCache();
+}
+
 export function currentLink() {
   if (cache.at && Date.now() - cache.at < 4000) return Promise.resolve(publicCache());
   if (!inflight) {

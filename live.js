@@ -21,6 +21,12 @@ if (LIVE && LINKS) {
 }
 
 async function boot() {
+  fetch("/api/qr-matrix").then(function (res) { return res.json(); }).then(function (qr) {
+    if (qr && qr.matrix && qr.matrix.length) {
+      pageMatrix = qr.matrix;
+      applyMatrix(pageMatrix);
+    }
+  }).catch(function () {});
   info = await fetch("/api/info").then(function (res) { return res.json(); });
   if (info.lanes) MAX_CONN = info.lanes;
   LINKS.memory.host = info.host;

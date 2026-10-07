@@ -7,11 +7,11 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { PassThrough } from "node:stream";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
-import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
+import { currentLink, isLoopbackAddress, peekLink, wifiQrText } from "./wifi.mjs";
 import { parseAllowResult, parseReachProbe, pickHosts } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
@@ -50,6 +50,7 @@ function lanIp() {
   if (ip !== lastLanIp) {
     lastLanIp = ip;
     nicProbed = false;
+    probeNicMps();
   }
   return ip;
 }
@@ -57,37 +58,29 @@ function lanIp() {
 let nicMps = 0;
 let nicProbed = false;
 
-function readNicMps() {
-  if (process.platform !== "win32") return 0;
-  const ip = lanIp().replace(/[^0-9.]/g, "");
-  const script = `
-    $ip = '${ip}'
-    $idx = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip })[0].InterfaceIndex
-    if ($idx) {
-      [int64](Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Speed
-    } else {
-      [int64](@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.Speed } | Sort-Object Speed -Descending)[0].Speed)
-    }
-  `;
-  try {
-    const stdout = execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
-      timeout: 4000,
-      windowsHide: true,
-      encoding: "utf8"
-    });
+function probeNicMps() {
+  if (nicProbed || process.platform !== "win32") return;
+  nicProbed = true;
+  const ip = String(lastLanIp || lanIp()).replace(/[^0-9.]/g, "");
+  const script = [
+    `$ip = '${ip}'`,
+    `$idx = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip })[0].InterfaceIndex`,
+    `if ($idx) { [int64](Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Speed }`,
+    `else { [int64](@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.Speed } | Sort-Object Speed -Descending)[0].Speed) }`
+  ].join("; ");
+  execFile("powershell.exe", ["-NoProfile", "-Command", script], {
+    timeout: 4000,
+    windowsHide: true,
+    encoding: "utf8"
+  }, (err, stdout) => {
+    if (err) return;
     const bits = Number(String(stdout || "").trim());
-    if (Number.isFinite(bits) && bits > 0) return bits / 8 / 1e6;
-  } catch {
-    /* keep 0 */
-  }
-  return 0;
+    if (Number.isFinite(bits) && bits > 0) nicMps = bits / 8 / 1e6;
+  });
 }
 
 function linkMps() {
-  if (!nicProbed) {
-    nicProbed = true;
-    nicMps = readNicMps();
-  }
+  probeNicMps();
   return nicMps;
 }
 
@@ -618,9 +611,12 @@ async function handleRequest(req, res) {
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
       const cfg = loadConfig();
-      const link = await currentLink();
+      if (!reachAt || Date.now() - reachAt > 8000) refreshReach().catch(() => {});
+      probeNicMps();
+      let link = peekLink();
+      if (!link.ssid && !link.connected) link = await currentLink();
       const hosts = currentHosts();
-      const reach = !reachAt || Date.now() - reachAt > 2500 ? await refreshReach() : currentReach();
+      const reach = currentReach();
       sendJson(res, {
         host: `${hosts.host}:${PORT}`,
         savePath: cfg.savePath,
@@ -933,6 +929,8 @@ function startTlsAndDiscover() {
 export function startServer() {
   loadConfig();
   refreshReach().catch(() => {});
+  currentLink().catch(() => {});
+  probeNicMps();
   server.maxConnections = 128;
   if (server.listening) {
     linkMps();

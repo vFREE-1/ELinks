@@ -233,10 +233,18 @@ window.addEventListener("pagehide", function () {
 });
 
 async function boot() {
-  info = await fetch("/api/info").then(function (res) { return res.json(); });
-  lanes = info.lanes || 4;
-  if (get("t")) info.token = get("t");
+  const token = get("t") || "";
   if (get("p")) $("join-password").value = get("p");
+  const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 2500) : 0;
+  try {
+    info = await fetch("/api/info", ctrl ? { signal: ctrl.signal } : undefined).then(function (res) { return res.json(); });
+  } catch (err) {
+    info = { token: token, lanes: 4 };
+  }
+  if (timer) clearTimeout(timer);
+  lanes = info.lanes || 4;
+  if (token) info.token = token;
   if (followUsb(info)) return;
   if (!info.token) {
     $("pick").hidden = true;
