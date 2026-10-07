@@ -110,6 +110,7 @@ if (!live.includes("function renderOrbs")) throw new Error("universe orbs missin
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
 if (!live.includes("const HOST_ICON") || !live.includes("function recvOrbPoint")) throw new Error("host icon and receive spacing missing");
 if (!live.includes("data.history")) throw new Error("receive page must show past hosts");
+if (!live.includes("function forgetBond") || !index.includes('id="peer-modal-forget"')) throw new Error("past hosts must be removable");
 if (!live.includes('ballPoint(field, $("orb-self"))')) throw new Error("send lines must meet the center of this computer");
 if (!index.includes('id="link-queue"')) throw new Error("queued authorizations must show remaining PCs");
 if (/function respondLink[\s\S]{0,500}setMode\(true\)/.test(live)) throw new Error("allowing one host must not jump to the receive list");
@@ -202,6 +203,10 @@ try {
   if (!Array.isArray(past.history) || !past.history.some((row) => row.host === "10.8.0.1" && row.status === "history")) {
     throw new Error("dropped host must stay on the receive page as history");
   }
+  const forgot = await request("POST", "/api/host-forget", Buffer.from(JSON.stringify({ host: "10.8.0.1" })), { json: true });
+  if (!forgot.json.ok) throw new Error("forget should remove a past host");
+  const cleaned = await json("GET", "/api/transfers");
+  if ((cleaned.history || []).some((row) => row.host === "10.8.0.1")) throw new Error("removed host must leave the receive page");
   await request("POST", "/api/link-respond", Buffer.from(JSON.stringify({ id: extraB.json.id, allow: false })), { json: true });
 
   const denied = await request("POST", "/api/link", Buffer.from(JSON.stringify({

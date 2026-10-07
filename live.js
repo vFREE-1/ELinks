@@ -892,6 +892,7 @@ function closePeerModal() {
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
   if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
   if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
+  if ($("peer-modal-forget")) $("peer-modal-forget").hidden = true;
   setHoldRow(0);
 }
 
@@ -923,6 +924,7 @@ function openPeerModal(peer, role) {
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = !liveBond;
     if ($("peer-modal-extend")) $("peer-modal-extend").hidden = !liveBond;
+    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = liveBond;
     setHoldRow(liveBond ? peer.until : 0);
   } else if (linked) {
     outboundSession = bond.session;
@@ -932,6 +934,7 @@ function openPeerModal(peer, role) {
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
     if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
+    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = true;
     setHoldRow(bond.until);
   } else {
     outboundSession = "";
@@ -941,6 +944,7 @@ function openPeerModal(peer, role) {
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
     if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
+    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = true;
     setHoldRow(0);
   }
   if ($("peer-modal")) $("peer-modal").hidden = false;
@@ -973,6 +977,7 @@ function applyLinkStatus(data) {
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
     if ($("peer-modal-drop")) $("peer-modal-drop").hidden = true;
     if ($("peer-modal-extend")) $("peer-modal-extend").hidden = true;
+    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = true;
     setHoldRow(data.until);
     paintSendOrbs();
   }
@@ -1308,6 +1313,29 @@ function extendBond() {
 
 if ($("peer-modal-extend")) {
   $("peer-modal-extend").addEventListener("click", function () { extendBond(); });
+}
+
+function forgetBond() {
+  const peer = outboundPeer;
+  if (!peer || !peer.host || modalRole !== "recv") return;
+  const btn = $("peer-modal-forget");
+  if (btn) btn.disabled = true;
+  fetch("/api/host-forget", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ host: peer.host })
+  }).then(function (res) { return res.json(); }).then(function (data) {
+    if (btn) btn.disabled = false;
+    if (!data || !data.ok) return;
+    closePeerModal();
+    pollTransfers();
+  }).catch(function () {
+    if (btn) btn.disabled = false;
+  });
+}
+
+if ($("peer-modal-forget")) {
+  $("peer-modal-forget").addEventListener("click", function () { forgetBond(); });
 }
 
 if ($("link-allow")) {

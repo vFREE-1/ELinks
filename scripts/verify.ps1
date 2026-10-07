@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true -or $health.hostHistory -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true -or $health.hostHistory -ne $true -or $health.hostForget -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -78,6 +78,7 @@ try {
   if ($page.Content -notmatch 'id="recv-universe"') { $needStart = $true }
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
   if ($page.Content -notmatch 'id="peer-modal-extend"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="peer-modal-forget"') { $needStart = $true }
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
   if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
   if ($page.Content -notmatch 'class="qr-slot"') { $needStart = $true }
@@ -379,6 +380,9 @@ try {
   if ($index -notmatch 'id="peer-modal-extend"') { throw "extend connection button missing" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
   if ($mainSrv -notmatch 'function rememberHost' -or $mainSrv -notmatch 'function historyHosts') { throw "receiver must keep past hosts after a drop" }
+  if ($mainSrv -notmatch '/api/host-forget' -or $mainSrv -notmatch 'function forgetHost') { throw "past hosts must be removable from the receive page" }
+  if ($index -notmatch 'id="peer-modal-forget"') { throw "history host modal must offer 移除" }
+  if ($live -notmatch 'function forgetBond') { throw "remove must take a past host off the receive page" }
   if ($live -notmatch 'data.history') { throw "receive page must render past hosts" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }

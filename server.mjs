@@ -361,9 +361,17 @@ function saveHosts(rows) {
   fs.writeFileSync(HOSTS_PATH, JSON.stringify(rows.slice(-24), null, 2), "utf8");
 }
 
+function forgetHost(host) {
+  const ip = String(host || "").trim();
+  if (!ip) return false;
+  const list = loadHosts().filter((row) => row.host !== ip);
+  saveHosts(list);
+  return true;
+}
+
 function rememberHost(row) {
   const host = String((row && row.host) || "").trim();
-  if (!host) return;
+  if (!host || isLoopbackAddress(host)) return;
   const list = loadHosts();
   const next = {
     host,
@@ -384,7 +392,7 @@ function liveBonds() {
 
 function historyHosts() {
   const live = new Set(liveBonds().map((row) => row.host));
-  return loadHosts().filter((row) => row.host && !live.has(row.host)).map((row) => ({
+  return loadHosts().filter((row) => row.host && !live.has(row.host) && !isLoopbackAddress(row.host)).map((row) => ({
     id: "past:" + row.host,
     alias: row.alias || row.host,
     host: row.host,
@@ -719,7 +727,8 @@ async function handleRequest(req, res) {
         sessionDrain: true,
         linkExtend: true,
         hostIcon: true,
-        hostHistory: true
+        hostHistory: true,
+        hostForget: true
       });
       return;
     }
@@ -1006,6 +1015,21 @@ async function handleRequest(req, res) {
       const rec = row.session ? sessions.get(row.session) : null;
       if (rec && !rec.cancelled) rec.until = until;
       sendJson(res, { ok: true, id: row.id, status: "accepted", until });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/host-forget") {
+      if (!isLoopbackAddress(req.socket.remoteAddress)) {
+        sendJson(res, { ok: false, error: "local only" }, 403);
+        return;
+      }
+      const incoming = await readJson(req);
+      const host = String(incoming.host || "").trim();
+      if (!host) {
+        sendJson(res, { ok: false, error: "no host" }, 400);
+        return;
+      }
+      forgetHost(host);
+      sendJson(res, { ok: true, host, history: historyHosts() });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/resume") {

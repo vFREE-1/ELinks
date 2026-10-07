@@ -701,6 +701,8 @@ html.is-desktop #qr {
   line-height: 1.4;
 }
 
+.modal-facts #peer-fact-hold-row[hidden] { display: none !important; }
+
 .modal-facts dt {
   color: var(--muted);
   font-size: 12px;
@@ -739,6 +741,16 @@ html.is-desktop #qr {
 
 .modal-card #peer-modal-drop:hover {
   background: rgba(196, 55, 47, 0.06);
+}
+
+.modal-card #peer-modal-forget {
+  background: #fff;
+  color: #6e6e73;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.modal-card #peer-modal-forget:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .modal-card .text,
