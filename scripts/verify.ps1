@@ -296,6 +296,10 @@ try {
   if ($index -notmatch 'id="panel-scan"') { throw "scan panel missing" }
   if ($index -notmatch 'id="panel-addr"') { throw "address panel missing" }
   if ($index -notmatch 'stage-extra') { throw "wifi and allow-lan should stay below the tabs" }
+  if ($index -match 'id="allow-lan" hidden') { throw "allow-lan must stay on the waiting page" }
+  if ($index -notmatch 'id="nav-allow-lan"') { throw "allow-lan must stay in the top bar" }
+  if ($index -notmatch 'id="settings-allow-lan"') { throw "allow-lan must stay in settings" }
+  if ($index -notmatch '允许防火墙通过') { throw "allow-lan must keep a visible firewall entry" }
   if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
@@ -304,6 +308,8 @@ try {
   if ($live -notmatch 'function showNetPath') { throw "toolbar must show whether the path is usb or wifi" }
   if ($live -notmatch 'path === "usb"') { throw "path chip must light up when usb is the transfer path" }
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
+  if ($live -match 'qrMode !== "page" \|\| !info \|\| !info.needAllow') { throw "allow-lan must stay visible after the probe" }
+  if ($live -notmatch 'function requestAllowLan') { throw "allow-lan click must be reusable from the top bar" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }

@@ -5,6 +5,7 @@ let MAX_CONN = 4;
 let info = null;
 let sessionId = "";
 let pollTimer = 0;
+let allowing = false;
 
 function $(id) {
   return document.getElementById(id);
@@ -21,6 +22,7 @@ if (LIVE && LINKS) {
 }
 
 async function boot() {
+  showAllowLan();
   fetch("/api/qr-matrix").then(function (res) { return res.json(); }).then(function (qr) {
     if (qr && qr.matrix && qr.matrix.length) {
       pageMatrix = qr.matrix;
@@ -169,21 +171,33 @@ function showPageQr() {
   showAllowLan();
 }
 
+function isDeskLocal() {
+  return location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.hostname === "[::1]";
+}
+
+function setAllowBusy(busy) {
+  ["allow-lan", "nav-allow-lan", "settings-allow-lan"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.disabled = busy;
+  });
+}
+
 function showAllowLan() {
   const card = $("allow-lan");
-  if (!card) return;
-  const local = location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.hostname === "[::1]";
-  if (!local || qrMode !== "page" || !info || !info.needAllow) {
-    card.hidden = true;
+  const nav = $("nav-allow-lan");
+  const settings = $("settings-allow-lan");
+  const local = isDeskLocal();
+  if (card) card.hidden = !local;
+  if (nav) nav.hidden = !local;
+  if (settings) settings.hidden = !local;
+  if (!local || allowing) return;
+  if (info && info.needAllow) {
+    if ($("allow-lan-title")) $("allow-lan-title").textContent = "检查过了：手机现在连不进来";
+    if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "点这里允许防火墙通过。只需确认一次，确认后会再检查一次。";
     return;
   }
-  card.hidden = false;
-  $("allow-lan-title").textContent = "检查过了：手机现在连不进来";
-  if (info.usb) {
-    $("allow-lan-copy").textContent = "点这里允许接入。只需确认一次，确认后会再检查一次。";
-    return;
-  }
-  $("allow-lan-copy").textContent = "点这里允许接入。只需确认一次，确认后会再检查一次。";
+  if ($("allow-lan-title")) $("allow-lan-title").textContent = "允许防火墙通过";
+  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "手机扫码打不开时点这里，在系统窗口选「是」。可以随时再点。";
 }
 
 function showWifiQr() {
@@ -231,34 +245,34 @@ $("join-wifi").addEventListener("click", function (event) {
   else showWifiQr();
 });
 
-let allowing = false;
-$("allow-lan").addEventListener("click", function (event) {
-  event.preventDefault();
+function requestAllowLan(event) {
+  if (event) event.preventDefault();
   if (allowing) return;
   allowing = true;
-  $("allow-lan").disabled = true;
-  $("allow-lan-title").textContent = "请在系统窗口点「是」";
-  $("allow-lan-copy").textContent = "正在请求允许手机连入，这不是连 Wi-Fi。";
+  setAllowBusy(true);
+  if ($("allow-lan-title")) $("allow-lan-title").textContent = "请在系统窗口点「是」";
+  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "正在请求允许手机连入，这不是连 Wi-Fi。";
   fetch("/api/allow-lan", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
     return refreshLink().then(function () {
       allowing = false;
-      $("allow-lan").disabled = false;
+      setAllowBusy(false);
       if ((data && data.ok === false) || (info && info.needAllow)) {
-        $("allow-lan").hidden = false;
-        $("allow-lan-title").textContent = "还是连不进来";
-        $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。确认后窗口会自己关掉。";
+        if ($("allow-lan-title")) $("allow-lan-title").textContent = "还是连不进来";
+        if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。确认后窗口会自己关掉。";
         return;
       }
       showPageQr();
     });
   }).catch(function () {
     allowing = false;
-    $("allow-lan").disabled = false;
-    $("allow-lan").hidden = false;
-    $("allow-lan-title").textContent = "没有完成允许";
-    $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
+    setAllowBusy(false);
+    if ($("allow-lan-title")) $("allow-lan-title").textContent = "没有完成允许";
+    if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
   });
-});
+}
+if ($("allow-lan")) $("allow-lan").addEventListener("click", requestAllowLan);
+if ($("nav-allow-lan")) $("nav-allow-lan").addEventListener("click", requestAllowLan);
+if ($("settings-allow-lan")) $("settings-allow-lan").addEventListener("click", requestAllowLan);
 
 if ($("open-hotspot")) {
   $("open-hotspot").addEventListener("click", function () {

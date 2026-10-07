@@ -29,6 +29,7 @@
         </div>
         <span class="pass-flag" id="pass-flag" hidden>需要密码</span>
         <nav class="top-nav">
+          <button type="button" class="nav" id="nav-allow-lan">允许防火墙</button>
           <button type="button" class="nav" id="open-settings">设置</button>
           <button type="button" class="nav" id="open-phone">手机页</button>
           <button type="button" class="nav" id="mode">查看接收</button>
@@ -79,9 +80,9 @@
             <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
             <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
           </button>
-          <button type="button" class="join-wifi" id="allow-lan" hidden>
-            <strong id="allow-lan-title">检查过了：手机现在连不进来</strong>
-            <span id="allow-lan-copy">点这里允许接入。只需确认一次，确认后会再检查一次。</span>
+          <button type="button" class="join-wifi" id="allow-lan">
+            <strong id="allow-lan-title">允许防火墙通过</strong>
+            <span id="allow-lan-copy">手机扫码打不开时点这里，在系统窗口选「是」。可以随时再点。</span>
           </button>
         </div>
       </div>
@@ -152,6 +153,7 @@
         <button type="button" class="text" id="check-update">检查更新</button>
       </div>
       <p class="update-status" id="update-status"></p>
+      <button type="button" class="text" id="settings-allow-lan">允许防火墙通过</button>
       <button type="button" class="text" id="open-hotspot">打开电脑热点设置</button>
       <p>插数据线后，在手机上打开 USB 网络共享。选照片仍在手机网页里完成，文件会优先走这条线，不用在电脑上翻手机文件夹。</p>
       <button type="button" class="text" id="close-settings">完成</button>
@@ -224,6 +226,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send4"></script>
-  <script src="live.js?v=send6"></script>
+  <script src="live.js?v=send7"></script>
 </body>
 </html>
