@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=set9" />
+  <link rel="stylesheet" href="styles.css?v=tabs1" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -37,16 +37,37 @@
     </header>
 
     <section class="stage" aria-label="等待接收">
-      <div class="stage-main">
-        <div class="listen">
-          <div class="plate">
-            <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+      <div class="stage-tabs" role="tablist" aria-label="上传方式">
+        <button type="button" class="stage-tab" id="tab-scan" role="tab" aria-selected="true" aria-controls="panel-scan">扫码上传</button>
+        <button type="button" class="stage-tab" id="tab-addr" role="tab" aria-selected="false" aria-controls="panel-addr">地址上传</button>
+      </div>
+      <div class="stage-panel" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan">
+        <div class="stage-main">
+          <div class="listen">
+            <div class="plate">
+              <canvas id="qr" aria-label="接收页二维码，手机扫码后选择照片或视频"></canvas>
+            </div>
           </div>
         </div>
+        <div class="stage-copy">
+          <h1 id="stage-title">等待接收</h1>
+          <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
+        </div>
       </div>
-      <div class="stage-copy">
-        <h1 id="stage-title">等待接收</h1>
-        <p id="stage-lead">用手机相机扫码，就会打开选照片。手机要和这台电脑在同一个网络。</p>
+      <div class="stage-panel" id="panel-addr" role="tabpanel" aria-labelledby="tab-addr" hidden>
+        <div class="stage-copy">
+          <h1>地址上传</h1>
+          <p>在手机浏览器打开或粘贴下面的地址，就会进入选照片。</p>
+          <label class="address-box">
+            <span>在手机里打开或粘贴</span>
+            <span class="address-field">
+              <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，点击复制" />
+              <button type="button" class="copy-chip" id="copy-host">复制</button>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="stage-extra">
         <button type="button" class="join-wifi" id="join-wifi" hidden>
           <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
           <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
@@ -55,13 +76,6 @@
           <strong id="allow-lan-title">检查过了：手机现在连不进来</strong>
           <span id="allow-lan-copy">点这里允许接入。只需确认一次，确认后会再检查一次。</span>
         </button>
-        <label class="address-box">
-          <span>在手机里打开或粘贴</span>
-          <span class="address-field">
-            <input id="desk-host" readonly value="192.168.1.24:8730" aria-label="接收地址，点击复制" />
-            <button type="button" class="copy-chip" id="copy-host">复制</button>
-          </span>
-        </label>
       </div>
     </section>
 
@@ -154,7 +168,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=set9"></script>
-  <script src="live.js?v=set9"></script>
+  <script src="app.js?v=tabs1"></script>
+  <script src="live.js?v=tabs1"></script>
 </body>
 </html>

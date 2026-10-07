@@ -85,6 +85,22 @@ function networkName() {
   return "";
 }
 
+function setWaitTab(id) {
+  const scan = id !== "addr";
+  const tabScan = $("tab-scan");
+  const tabAddr = $("tab-addr");
+  const panelScan = $("panel-scan");
+  const panelAddr = $("panel-addr");
+  if (!tabScan || !tabAddr || !panelScan || !panelAddr) return;
+  tabScan.setAttribute("aria-selected", scan ? "true" : "false");
+  tabAddr.setAttribute("aria-selected", scan ? "false" : "true");
+  panelScan.hidden = !scan;
+  panelAddr.hidden = scan;
+  if (scan) {
+    requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
+  }
+}
+
 function showPageQr() {
   qrMode = "page";
   if (pageMatrix) applyMatrix(pageMatrix);
@@ -127,6 +143,7 @@ function showAllowLan() {
 
 function showWifiQr() {
   if (!wifiMatrix) return;
+  setWaitTab("scan");
   qrMode = "wifi";
   applyMatrix(wifiMatrix);
   $("qr").setAttribute("aria-label", "加入这台电脑所在 Wi-Fi 的二维码");
@@ -153,6 +170,9 @@ async function loadWifiJoin() {
   }
   showPageQr();
 }
+
+$("tab-scan").addEventListener("click", function () { setWaitTab("scan"); });
+$("tab-addr").addEventListener("click", function () { setWaitTab("addr"); });
 
 $("join-wifi").addEventListener("click", function (event) {
   event.preventDefault();
