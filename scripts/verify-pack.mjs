@@ -45,7 +45,7 @@ if (!files.includes("!received/**") || !files.includes("!data/**")) {
 const pack = fs.readFileSync(path.join(ROOT, "scripts", "pack.ps1"), "utf8");
 if (!pack.includes("ELECTRON_BUILDER_CACHE")) throw new Error("pack cache must stay in the repo");
 if (!pack.includes("Refusing path outside repo")) throw new Error("pack must refuse paths outside the repo");
-if (!pack.includes("轻传File-Setup-")) throw new Error("pack must look for the setup exe");
+if (!pack.includes("*-Setup-$($pkg.version).exe")) throw new Error("pack must look for the setup exe named after package.json version");
 if (!pack.includes('{"type":"commonjs"}')) throw new Error("pack cache must stay CommonJS so the icon tool can run");
 
 const tls = fs.readFileSync(path.join(ROOT, "scripts", "make-tls.ps1"), "utf8");
