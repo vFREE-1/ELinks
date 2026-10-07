@@ -109,6 +109,7 @@ if (!live.includes("function setDeskMode")) throw new Error("desk mode switch mi
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
 if (!live.includes("const HOST_ICON") || !live.includes("function recvOrbPoint")) throw new Error("host icon and receive spacing missing");
+if (!live.includes("data.history")) throw new Error("receive page must show past hosts");
 if (!live.includes('ballPoint(field, $("orb-self"))')) throw new Error("send lines must meet the center of this computer");
 if (!index.includes('id="link-queue"')) throw new Error("queued authorizations must show remaining PCs");
 if (/function respondLink[\s\S]{0,500}setMode\(true\)/.test(live)) throw new Error("allowing one host must not jump to the receive list");
@@ -193,6 +194,15 @@ try {
   if (afterAllow.pendingLinks.some((row) => row.id === extraA.json.id)) throw new Error("allowed host should leave the authorization queue");
   if (!afterAllow.pendingLinks.some((row) => row.id === extraB.json.id)) throw new Error("the next host must stay waiting after one allow");
   if (!afterAllow.bonds.some((row) => row.id === extraA.json.id)) throw new Error("allowed host should become a live bond while others wait");
+  if ((afterAllow.history || []).some((row) => row.host === "10.8.0.1")) throw new Error("a live host must not also appear as history");
+  const dropA = await request("POST", "/api/link-drop", Buffer.from(JSON.stringify({ id: extraA.json.id })), { json: true });
+  if (dropA.json.status !== "dropped") throw new Error("queued host should be droppable");
+  const past = await json("GET", "/api/transfers");
+  if (past.bonds.some((row) => row.id === extraA.json.id)) throw new Error("dropped host must leave the live bonds");
+  if (!Array.isArray(past.history) || !past.history.some((row) => row.host === "10.8.0.1" && row.status === "history")) {
+    throw new Error("dropped host must stay on the receive page as history");
+  }
+  await request("POST", "/api/link-respond", Buffer.from(JSON.stringify({ id: extraB.json.id, allow: false })), { json: true });
 
   const denied = await request("POST", "/api/link", Buffer.from(JSON.stringify({
     token: snapshot.token,

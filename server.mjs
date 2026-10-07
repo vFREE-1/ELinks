@@ -23,6 +23,7 @@ import { appHome, scriptFile } from "./runtime.mjs";
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(appHome(), "data");
 const CONFIG_PATH = path.join(DATA, "config.json");
+const HOSTS_PATH = path.join(DATA, "hosts.json");
 const DEFAULT_SAVE = path.join(appHome(), "received");
 const execFileAsync = promisify(execFile);
 const PORT = 8730;
@@ -323,6 +324,7 @@ function expireLinks() {
     if (row.status === "accepted") {
       const until = Number(row.until) || (row.t + LINK_HOLD_MS);
       if (now > until) {
+        rememberHost(row);
         dropLinkSession(row);
         linkReqs.delete(id);
       }
@@ -345,9 +347,53 @@ function publicLink(row) {
   };
 }
 
+function loadHosts() {
+  try {
+    const rows = JSON.parse(fs.readFileSync(HOSTS_PATH, "utf8"));
+    return Array.isArray(rows) ? rows.filter((row) => row && row.host) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHosts(rows) {
+  fs.mkdirSync(DATA, { recursive: true });
+  fs.writeFileSync(HOSTS_PATH, JSON.stringify(rows.slice(-24), null, 2), "utf8");
+}
+
+function rememberHost(row) {
+  const host = String((row && row.host) || "").trim();
+  if (!host) return;
+  const list = loadHosts();
+  const next = {
+    host,
+    alias: String((row && row.alias) || "").trim(),
+    port: Number(row && row.port) || PORT,
+    lastAt: Date.now()
+  };
+  const idx = list.findIndex((item) => item.host === host);
+  if (idx >= 0) list[idx] = Object.assign({}, list[idx], next, { alias: next.alias || list[idx].alias || "" });
+  else list.push(next);
+  saveHosts(list);
+}
+
 function liveBonds() {
   expireLinks();
   return [...linkReqs.values()].filter((row) => row.status === "accepted").map(publicLink);
+}
+
+function historyHosts() {
+  const live = new Set(liveBonds().map((row) => row.host));
+  return loadHosts().filter((row) => row.host && !live.has(row.host)).map((row) => ({
+    id: "past:" + row.host,
+    alias: row.alias || row.host,
+    host: row.host,
+    port: row.port || PORT,
+    status: "history",
+    until: 0,
+    session: "",
+    at: row.lastAt || 0
+  }));
 }
 
 function reuseAccepted(host) {
@@ -672,7 +718,8 @@ async function handleRequest(req, res) {
         sessionHold: true,
         sessionDrain: true,
         linkExtend: true,
-        hostIcon: true
+        hostIcon: true,
+        hostHistory: true
       });
       return;
     }
@@ -762,7 +809,8 @@ async function handleRequest(req, res) {
         active: [...transfers.values()].map(publicTransfer),
         done: done.slice(-20),
         pendingLinks: local ? pendingLinks() : [],
-        bonds: local ? liveBonds() : []
+        bonds: local ? liveBonds() : [],
+        history: local ? historyHosts() : []
       });
       return;
     }
@@ -915,6 +963,7 @@ async function handleRequest(req, res) {
         row.session = session;
         row.status = "accepted";
         row.until = until;
+        rememberHost(row);
         sendJson(res, { ok: true, id: row.id, status: "accepted", until });
         return;
       }
@@ -934,6 +983,7 @@ async function handleRequest(req, res) {
         sendJson(res, { ok: false, error: "no link" }, 404);
         return;
       }
+      rememberHost(row);
       dropLinkSession(row);
       linkReqs.delete(row.id);
       sendJson(res, { ok: true, id: row.id, status: "dropped" });

@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true -or $health.hostHistory -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -84,6 +84,7 @@ try {
   if ($page.Content -notmatch 'id="link-queue"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
+  if ($xferPeek.PSObject.Properties.Name -notcontains 'history') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
   if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
   $phonePeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing -TimeoutSec 2
@@ -377,6 +378,8 @@ try {
   if ($live -notmatch 'function ballPoint') { throw "orb lines must meet the center of the ball" }
   if ($index -notmatch 'id="peer-modal-extend"') { throw "extend connection button missing" }
   if ($mainSrv -notmatch 'reuseAccepted' -or $mainSrv -notmatch '/api/link-drop') { throw "accepted links must reuse and allow receiver drop" }
+  if ($mainSrv -notmatch 'function rememberHost' -or $mainSrv -notmatch 'function historyHosts') { throw "receiver must keep past hosts after a drop" }
+  if ($live -notmatch 'data.history') { throw "receive page must render past hosts" }
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }
   if ($index -notmatch 'id="allow-lan"') { throw "allow-lan control missing" }

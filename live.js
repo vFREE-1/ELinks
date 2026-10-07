@@ -918,11 +918,12 @@ function openPeerModal(peer, role) {
     outboundSession = "";
     outboundBase = "";
     outboundLinkId = "";
+    const liveBond = Boolean(peer && peer.status === "accepted" && Number(peer.until) > Date.now());
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
-    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = false;
-    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = false;
-    setHoldRow(peer && peer.until);
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = !liveBond;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = !liveBond;
+    setHoldRow(liveBond ? peer.until : 0);
   } else if (linked) {
     outboundSession = bond.session;
     outboundBase = peerBase(peer);
@@ -1041,9 +1042,8 @@ function dropBond() {
   }).then(function (res) { return res.json(); }).then(function (data) {
     if (!data || !data.ok) return;
     forgetSenderBond(peer.host);
-    lastBonds = lastBonds.filter(function (row) { return row.id !== peer.id; });
     closePeerModal();
-    renderRecvOrbs(lastBonds);
+    pollTransfers();
     if (document.documentElement.classList.contains("is-send")) refreshUniverse();
   }).catch(function () {});
 }
@@ -1373,7 +1373,7 @@ async function pollTransfers() {
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
   showLinkTab(data.pendingLinks || []);
   liveSessions = new Set((data.active || []).map(function (item) { return item && item.session; }).filter(Boolean));
-  renderRecvOrbs(data.bonds || []);
+  renderRecvOrbs((data.bonds || []).concat(data.history || []));
   if (document.documentElement.classList.contains("is-send")) paintSendOrbs();
   if (outboundActive) return;
   if (busyKind === "send" && !(data.active || []).length) return;
