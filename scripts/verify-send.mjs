@@ -80,6 +80,7 @@ function probe(timeoutMs) {
 const indexPath = path.join(ROOT, "index.html");
 const index = fs.readFileSync(indexPath, "utf8");
 if (!index.includes("局域网文件互传")) throw new Error("toolbar subtitle should say LAN file transfer");
+if (!index.includes(">轻传File<")) throw new Error("toolbar brand should be 轻传File");
 if (!index.includes('id="tab-recv"') || !index.includes('id="tab-send"')) throw new Error("receive/send tabs missing");
 if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw new Error("send universe missing");
 if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");

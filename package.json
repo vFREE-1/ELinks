@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "links.desktop",
-    "productName": "Elinks",
+    "productName": "轻传File",
     "executableName": "Elinks",
     "npmRebuild": false,
     "electronDist": "node_modules/electron/dist",
@@ -62,12 +62,12 @@
       "allowElevation": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Elinks",
+      "shortcutName": "轻传File",
       "installerLanguages": [
         "zh_CN"
       ],
       "unicode": true,
-      "artifactName": "Elinks-Setup-${version}.${ext}",
+      "artifactName": "轻传File-Setup-${version}.${ext}",
       "deleteAppDataOnUninstall": false
     }
   }

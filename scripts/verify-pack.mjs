@@ -32,7 +32,7 @@ if (unpackPath(path.join(ROOT, "scripts", "make-tls.ps1")) !== path.join(ROOT, "
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const win = pkg.build && pkg.build.win;
 if (!win || !Array.isArray(win.target) || !win.target.includes("nsis")) throw new Error("package must build an NSIS installer");
-if (pkg.build.productName !== "Elinks") throw new Error("installer product name must be Elinks");
+if (pkg.build.productName !== "轻传File") throw new Error("installer product name must be 轻传File");
 const unpack = JSON.stringify(pkg.build.asarUnpack || []);
 if (!unpack.includes("make-tls.ps1") || !unpack.includes("allow-lan.cmd")) {
   throw new Error("firewall and tls scripts must be unpacked for PowerShell");
@@ -45,7 +45,7 @@ if (!files.includes("!received/**") || !files.includes("!data/**")) {
 const pack = fs.readFileSync(path.join(ROOT, "scripts", "pack.ps1"), "utf8");
 if (!pack.includes("ELECTRON_BUILDER_CACHE")) throw new Error("pack cache must stay in the repo");
 if (!pack.includes("Refusing path outside repo")) throw new Error("pack must refuse paths outside the repo");
-if (!pack.includes("Elinks-Setup-")) throw new Error("pack must look for the setup exe");
+if (!pack.includes("轻传File-Setup-")) throw new Error("pack must look for the setup exe");
 if (!pack.includes('{"type":"commonjs"}')) throw new Error("pack cache must stay CommonJS so the icon tool can run");
 
 const tls = fs.readFileSync(path.join(ROOT, "scripts", "make-tls.ps1"), "utf8");

@@ -44,7 +44,7 @@ async function boot() {
   applyRings(info.rings !== false);
   applyDiscoverable(info.discoverable !== false);
   if ($("alias-name")) $("alias-name").value = info.alias || "";
-  if ($("orb-self-name")) $("orb-self-name").textContent = info.alias || "Elinks";
+  if ($("orb-self-name")) $("orb-self-name").textContent = info.alias || "轻传File";
   if ($("app-version") && info.version) $("app-version").textContent = info.version;
   showNetPath();
   if ($("now-mps")) $("now-mps").textContent = "0";
@@ -811,7 +811,7 @@ function renderOrbs(peers) {
   drawLines($("send-lines"), ballPoint(field, $("orb-self")), spokes);
   if (empty) {
     empty.hidden = false;
-    empty.textContent = seen.size ? "点一台电脑，发给它" : "附近没有其他电脑。两台都要打开 Elinks，并在两边点允许防火墙。";
+    empty.textContent = seen.size ? "点一台电脑，发给它" : "附近没有其他电脑。两台都要打开 轻传File，并在两边点允许防火墙。";
   }
 }
 

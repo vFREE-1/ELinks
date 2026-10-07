@@ -230,7 +230,7 @@ try {
   if (-not $blockedMjs) { throw "server.mjs must not be served to the phone" }
 
   $index = Get-Content -LiteralPath (Join-Path $RootFull "index.html") -Raw
-  if ($index -notmatch 'Elinks') { throw "brand should be Elinks" }
+  if ($index -notmatch '轻传File') { throw "brand should be 轻传File" }
   if ($index -notmatch 'Power by EndLessGo - vFREE') { throw "footer credit missing" }
   if ($index -match '千兆局域网') { throw "header still uses a marketing link label" }
 
@@ -422,7 +422,7 @@ try {
   if ($index -notmatch 'id="rings-toggle"') { throw "animation switch missing" }
   if ($index -notmatch 'id="random-password"') { throw "random password button missing" }
   if ($index -notmatch 'id="check-update"') { throw "update check missing" }
-  if ($index -notmatch 'class="brand-name">Elinks</div>\s*<span class="brand-sub"[^>]*>局域网文件互传</span>') { throw "Elinks and brand-sub must stay on one toolbar row" }
+  if ($index -notmatch 'class="brand-name">轻传File</div>\s*<span class="brand-sub"[^>]*>局域网文件互传</span>') { throw "轻传File and brand-sub must stay on one toolbar row" }
   if ($index -match '<div>\s*<div class="brand-name">') { throw "brand subtitle must not wrap under the name" }
   if (Test-Path -LiteralPath (Join-Path $RootFull "busy.html")) { throw "demo busy.html should be removed" }
   $css = Get-Content -LiteralPath (Join-Path $RootFull "styles.css") -Raw

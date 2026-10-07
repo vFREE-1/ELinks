@@ -31,7 +31,7 @@ function lanIfaces() {
 
 export function startDiscover(opts) {
   const getHost = opts && opts.getHost ? opts.getHost : () => "127.0.0.1";
-  const getAlias = opts && opts.getAlias ? opts.getAlias : () => (opts && opts.alias) || "Elinks";
+  const getAlias = opts && opts.getAlias ? opts.getAlias : () => (opts && opts.alias) || "轻传File";
   const getToken = opts && opts.getToken ? opts.getToken : () => "";
   const getDiscoverable = opts && opts.getDiscoverable ? opts.getDiscoverable : () => true;
   const port = Number(opts && opts.port) || 8730;

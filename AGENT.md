@@ -4,7 +4,7 @@ This file is binding for every agent working in this repository (`H:\links`).
 
 ## Product
 
-Windows desktop receiver: Electron window via `npm run dev`, HTTP core in `server.mjs`, phone uses the browser. No mobile app. Phone picks photos/videos; PC stores originals. Videos use multiple connections on one file; the UI still shows one progress bar. Windows installer: `powershell -NoProfile -File scripts\pack.ps1` (output `dist\Elinks-Setup-<version>.exe`). Dev keeps `data/` and `received/` in the repo; an installed copy keeps them in the user's Documents\Elinks folder.
+Windows desktop receiver branded 轻传File: Electron window via `npm run dev`, HTTP core in `server.mjs`, phone uses the browser. No mobile app. Phone picks photos/videos; PC stores originals. Videos use multiple connections on one file; the UI still shows one progress bar. Windows installer: `powershell -NoProfile -File scripts\pack.ps1` (output `dist\轻传File-Setup-<version>.exe`). Dev keeps `data/` and `received/` in the repo; an installed copy keeps them in the user's Documents\Elinks folder.
 
 ## Git
 

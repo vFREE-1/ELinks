@@ -44,7 +44,7 @@ try {
 }
 
 $dist = Assert-InsideRepo (Join-Path $RootFull "dist")
-$setup = Get-ChildItem -LiteralPath $dist -Filter "Elinks-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$setup = Get-ChildItem -LiteralPath $dist -Filter "轻传File-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $setup) { throw "installer exe missing" }
 $min = 30MB
 if ($setup.Length -lt $min) { throw "installer looks truncated: $($setup.Length) bytes" }

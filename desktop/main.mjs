@@ -17,7 +17,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 500,
     backgroundColor: "#ffffff",
-    title: "Elinks",
+    title: "轻传File",
     icon: assetFile("icon.png"),
     autoHideMenuBar: true,
     show: false,

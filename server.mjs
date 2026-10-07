@@ -191,8 +191,8 @@ function openHotspot() {
 }
 
 function defaultAlias() {
-  const raw = String(os.hostname() || "Elinks").replace(/\.local$/i, "").trim();
-  return raw.slice(0, 24) || "Elinks";
+  const raw = String(os.hostname() || "轻传File").replace(/\.local$/i, "").trim();
+  return raw.slice(0, 24) || "轻传File";
 }
 
 function cleanAlias(value) {
@@ -1171,7 +1171,7 @@ function startTlsAndDiscover() {
     });
     httpsServer.listen(HTTPS_PORT, "0.0.0.0", () => {
       httpsReady = true;
-      console.log(`Elinks TLS https://${lanIp()}:${HTTPS_PORT}`);
+      console.log(`轻传File TLS https://${lanIp()}:${HTTPS_PORT}`);
     });
   } catch {
     httpsReady = false;
@@ -1207,7 +1207,7 @@ export function startServer() {
     };
     const onListen = () => {
       server.off("error", onError);
-      console.log(`Elinks receiver http://${lanIp()}:${PORT}`);
+      console.log(`轻传File receiver http://${lanIp()}:${PORT}`);
       console.log(`Save path ${saveRoot()}`);
       startTlsAndDiscover();
       resolve({ port: PORT, host: lanIp(), reused: false });
