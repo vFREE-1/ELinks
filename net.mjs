@@ -10,7 +10,7 @@ export function isPrivateLan(address) {
   return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(String(address || ""));
 }
 
-export function pickLanIp(nics) {
+export function pickHosts(nics) {
   const usable = [];
   for (const nic of nics || []) {
     if (nic && nic.internal) continue;
@@ -25,10 +25,18 @@ export function pickLanIp(nics) {
     });
   }
   const usb = usable.find((row) => row.usb);
-  if (usb) return usb.address;
-  const priv = usable.find((row) => isPrivateLan(row.address));
-  if (priv) return priv.address;
-  return usable[0] ? usable[0].address : "127.0.0.1";
+  const wifi = usable.find((row) => !row.usb && isPrivateLan(row.address));
+  const chosen = usb || wifi || usable[0];
+  return {
+    host: chosen ? chosen.address : "127.0.0.1",
+    usbHost: usb ? usb.address : "",
+    wifiHost: wifi ? wifi.address : "",
+    path: usb ? "usb" : "wifi"
+  };
+}
+
+export function pickLanIp(nics) {
+  return pickHosts(nics).host;
 }
 
 export function parseCategory(text) {
@@ -64,6 +72,8 @@ export function inboundOpen(probe) {
   if (appBlock > 0) return false;
   return elinks > 0 || appAllow > 0;
 }
+
+export { shouldSwitchToUsb } from "./usb-path.mjs";
 
 export function parseAllowResult(text) {
   const raw = String(text || "").trim();

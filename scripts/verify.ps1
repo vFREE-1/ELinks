@@ -29,22 +29,22 @@ try {
 }
 
 function Stop-RepoReceiver {
-  $owns = @()
+  $ids = @()
   try {
-    $owns = @(Get-NetTCPConnection -LocalPort 8730 -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique)
-  } catch {
-    $owns = @()
-  }
-  foreach ($procId in $owns) {
-    $p = Get-CimInstance Win32_Process -Filter "ProcessId = $procId"
-    if ($p -and ($p.Name -match 'node|electron')) {
-      Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+    $lines = @(netstat -ano | Select-String ':8730')
+    foreach ($line in $lines) {
+      if ($line.Line -match '\sLISTENING\s+(\d+)\s*$') { $ids += [int]$Matches[1] }
     }
+  } catch {
+    $ids = @()
   }
-  Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -match 'electron' -and $_.CommandLine -match 'H:\\links|electron \.'
-  } | ForEach-Object {
-    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+  foreach ($procId in ($ids | Select-Object -Unique)) {
+    try {
+      $p = Get-Process -Id $procId -ErrorAction Stop
+      if ($p.ProcessName -match 'node|electron') {
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
   }
   Start-Sleep -Milliseconds 400
 }
@@ -60,6 +60,8 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'needAllow') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'open') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'path') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'usbHost') { $needStart = $true }
+  if ($peek.PSObject.Properties.Name -notcontains 'wifiHost') { $needStart = $true }
   if ($peek.phoneUrl -notmatch 'phone.html') { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
@@ -98,7 +100,13 @@ try {
   if ($info.open -isnot [bool]) { throw "info.open must be a boolean" }
   if ($info.needAllow -eq $info.open) { throw "needAllow should be the opposite of open" }
   if ($info.usb -isnot [bool]) { throw "info.usb must be a boolean" }
+  if ($info.usbHost -isnot [string]) { throw "info.usbHost must be a string" }
+  if ($info.wifiHost -isnot [string]) { throw "info.wifiHost must be a string" }
   if ($info.path -ne "usb" -and $info.path -ne "wifi") { throw "info.path must be usb or wifi" }
+  if ($info.usb -and $info.path -ne "usb") { throw "usb linked must prefer the usb path" }
+  if (-not $info.usb -and $info.path -ne "wifi") { throw "no usb must stay on wifi path" }
+  if ($info.usb -and $info.host -notlike "$($info.usbHost):*") { throw "preferred host must be the usb address" }
+  if (-not $info.usb -and $info.wifiHost -and $info.host -notlike "$($info.wifiHost):*") { throw "preferred host must be the wifi address when usb is down" }
   $rawInfo = (Invoke-WebRequest -Uri "http://127.0.0.1:8730/api/info" -UseBasicParsing).Content
   if ($rawInfo -match "WIFI:") { throw "wifi payload leaked in info" }
 
@@ -160,6 +168,9 @@ try {
   if ($phonePage.Content -match 'id="host"') { throw "phone page should not ask for a host" }
   $sendMod = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing
   if ($sendMod.StatusCode -ne 200) { throw "send.mjs must be reachable from the phone page" }
+  $usbMod = Invoke-WebRequest -Uri "http://127.0.0.1:8730/usb-path.mjs" -UseBasicParsing
+  if ($usbMod.StatusCode -ne 200) { throw "usb-path.mjs must be reachable from the phone page" }
+  if ($usbMod.Content -notmatch 'shouldSwitchToUsb') { throw "usb-path.mjs must decide when to leave wifi" }
   if ($sendMod.Content -notmatch 'XMLHttpRequest') { throw "phone upload must use XHR so progress can move while sending" }
   if ($sendMod.Content -notmatch 'upload.onprogress') { throw "phone upload must listen to upload progress" }
   $blockedMjs = $false
@@ -299,6 +310,10 @@ try {
   $phoneJs = Get-Content -LiteralPath (Join-Path $RootFull "phone.js") -Raw
   if ($phoneJs -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
   if ($phoneJs -notmatch 'sendFiles') { throw "phone page must send through the shared uploader" }
+  if ($phoneJs -notmatch 'shouldSwitchToUsb') { throw "phone page must follow the usb address when the cable is up" }
+  if ($phoneJs -notmatch 'usb-path') { throw "phone page must load the usb switch helper" }
+  if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
+  if ($mainSrv -notmatch 'usb-path.mjs') { throw "usb-path.mjs must be on the client allow list" }
   $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw
   if ($sliceSrc -notmatch '512 \* 1024') { throw "iphone slices must stay small so the first bytes leave sooner" }
   if ($mainSrv -match 'write\(Buffer.alloc\(1\)') { throw "part file must not punch a byte at EOF" }

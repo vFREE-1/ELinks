@@ -1,4 +1,5 @@
 import { sendFiles } from "./send.mjs";
+import { shouldSwitchToUsb } from "./usb-path.mjs";
 
 function $(id) {
   return document.getElementById(id);
@@ -113,10 +114,32 @@ function queueFiles(list) {
     sending = false;
     paint(items);
     setStatus(items.some(function (item) { return item.error; }) ? "有的没传上，可以再选一次。" : "可以继续选。");
+    watchPath();
   }).catch(function () {
     sending = false;
     setStatus("这次没传上，请再选一次。");
+    watchPath();
   });
+}
+
+function followUsb(data) {
+  if (sending) return false;
+  if (!shouldSwitchToUsb(location.hostname, data)) return false;
+  if (!data.phoneUrl) return false;
+  setStatus("改走数据线传。");
+  location.replace(data.phoneUrl);
+  return true;
+}
+
+async function watchPath() {
+  try {
+    const data = await fetch("/api/info").then(function (res) { return res.json(); });
+    info = data;
+    if (data.lanes) lanes = data.lanes;
+    followUsb(data);
+  } catch (err) {
+    /* keep current path */
+  }
 }
 
 $("join-pass").addEventListener("submit", function (event) {
@@ -141,12 +164,14 @@ async function boot() {
   lanes = info.lanes || 4;
   if (get("t")) info.token = get("t");
   if (get("p")) $("join-password").value = get("p");
+  if (followUsb(info)) return;
   if (!info.token) {
     $("pick").hidden = true;
     setStatus("请用电脑上的码扫进来。");
     return;
   }
   await pair(Boolean(get("p")));
+  setInterval(watchPath, 2000);
 }
 
 boot().catch(function () {

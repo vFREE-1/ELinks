@@ -59,12 +59,13 @@ async function boot() {
   pollTimer = setInterval(pollTransfers, 400);
   checkForUpdate(false);
   setInterval(function () {
-    const prevHost = info && info.host;
-    const prevUsb = info && info.usb;
-    const prevAllow = info && info.needAllow;
-    refreshLink().then(function () {
-      if (info && (info.host !== prevHost || info.usb !== prevUsb || info.needAllow !== prevAllow)) showPageQr();
-    }).catch(function () {});
+      const prevHost = info && info.host;
+      const prevUsb = info && info.usb;
+      const prevUsbHost = info && info.usbHost;
+      const prevAllow = info && info.needAllow;
+      refreshLink().then(function () {
+        if (info && (info.host !== prevHost || info.usb !== prevUsb || info.usbHost !== prevUsbHost || info.needAllow !== prevAllow)) showPageQr();
+      }).catch(function () {});
   }, 2500);
 }
 

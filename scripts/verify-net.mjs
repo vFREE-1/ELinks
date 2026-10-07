@@ -1,4 +1,4 @@
-import { inboundOpen, isUsbAddress, parseAllowResult, parseCategory, parseReachProbe, pickLanIp } from "../net.mjs";
+import { inboundOpen, isUsbAddress, parseAllowResult, parseCategory, parseReachProbe, pickHosts, pickLanIp, shouldSwitchToUsb } from "../net.mjs";
 
 function assert(cond, message) {
   if (!cond) throw new Error(message);
@@ -13,6 +13,17 @@ assert(pickLanIp(nics) === "192.168.1.22", "prefer home lan over tailscale");
 
 const usb = nics.concat([{ name: "以太网 12", address: "192.168.42.2", family: "IPv4", internal: false }]);
 assert(pickLanIp(usb) === "192.168.42.2", "prefer android usb tethering");
+const hosts = pickHosts(usb);
+assert(hosts.path === "usb", "usb path wins over wifi");
+assert(hosts.usbHost === "192.168.42.2", "usb host recorded");
+assert(hosts.wifiHost === "192.168.1.22", "wifi host kept but not preferred");
+const wifiOnly = pickHosts(nics);
+assert(wifiOnly.path === "wifi", "no usb stays on wifi");
+assert(wifiOnly.usbHost === "", "no usb host when unplugged");
+assert(shouldSwitchToUsb("192.168.1.22", { usbHost: "192.168.42.2" }) === true, "phone on wifi must move to usb");
+assert(shouldSwitchToUsb("192.168.42.2", { usbHost: "192.168.42.2" }) === false, "already on usb");
+assert(shouldSwitchToUsb("127.0.0.1", { usbHost: "192.168.42.2" }) === false, "desktop preview stays");
+assert(shouldSwitchToUsb("192.168.1.22", { usbHost: "" }) === false, "no switch without usb");
 assert(isUsbAddress("172.20.10.2", "iPhone") === true, "iphone usb");
 assert(isUsbAddress("192.168.1.22", "WLAN") === false, "home wifi is not usb");
 assert(pickLanIp([]) === "127.0.0.1", "empty");

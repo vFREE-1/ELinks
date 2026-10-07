@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { currentLink, isLoopbackAddress, wifiQrText } from "./wifi.mjs";
-import { isUsbAddress, parseAllowResult, parseReachProbe, pickLanIp } from "./net.mjs";
+import { parseAllowResult, parseReachProbe, pickHosts } from "./net.mjs";
 import { lanesForLink } from "./lanes.mjs";
 import { APP_VERSION, checkUpdate } from "./update.mjs";
 
@@ -22,7 +22,7 @@ const DEFAULT_SAVE = path.join(ROOT, "received");
 const execFileAsync = promisify(execFile);
 const PORT = 8730;
 const STATIC_EXT = new Set([".html", ".css", ".js", ".mjs", ".svg", ".png", ".ico"]);
-const CLIENT_MJS = new Set(["slice.mjs", "send.mjs"]);
+const CLIENT_MJS = new Set(["slice.mjs", "send.mjs", "usb-path.mjs"]);
 
 const pairToken = crypto.randomBytes(9).toString("base64url");
 const sessions = new Map();
@@ -31,8 +31,19 @@ const done = [];
 const fileLocks = new Map();
 const stats = { inflight: 0, maxInflight: 0, bytes: 0 };
 
+let lastLanIp = "";
+
+function currentHosts() {
+  return pickHosts(nicList());
+}
+
 function lanIp() {
-  return pickLanIp(nicList());
+  const ip = currentHosts().host;
+  if (ip !== lastLanIp) {
+    lastLanIp = ip;
+    nicProbed = false;
+  }
+  return ip;
 }
 
 let nicMps = 0;
@@ -92,7 +103,7 @@ function nicList() {
 }
 
 function usbLinked() {
-  return nicList().some((nic) => !nic.internal && isUsbAddress(nic.address, nic.name));
+  return Boolean(currentHosts().usbHost);
 }
 
 let reachAt = 0;
@@ -465,9 +476,10 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/info") {
       const cfg = loadConfig();
       const link = await currentLink();
+      const hosts = currentHosts();
       const reach = !reachAt || Date.now() - reachAt > 2500 ? await refreshReach() : currentReach();
       sendJson(res, {
-        host: `${lanIp()}:${PORT}`,
+        host: `${hosts.host}:${PORT}`,
         savePath: cfg.savePath,
         passwordSet: Boolean(String(cfg.password || "").trim()),
         token: pairToken,
@@ -480,9 +492,11 @@ const server = http.createServer(async (req, res) => {
         version: APP_VERSION,
         needAllow: reach.needAllow,
         publicNet: reach.publicNet,
-        usb: reach.usb,
+        usb: Boolean(hosts.usbHost),
+        usbHost: hosts.usbHost,
+        wifiHost: hosts.wifiHost,
         open: reach.open === true,
-        path: reach.usb ? "usb" : "wifi"
+        path: hosts.path
       });
       return;
     }
@@ -624,10 +638,12 @@ export { PORT, lanIp, server };
 
 export function startServer() {
   loadConfig();
-  linkMps();
   refreshReach().catch(() => {});
   server.maxConnections = 128;
-  if (server.listening) return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
+  if (server.listening) {
+    linkMps();
+    return Promise.resolve({ port: PORT, host: lanIp(), reused: true });
+  }
   return new Promise((resolve, reject) => {
     const onError = (err) => {
       server.off("listening", onListen);
@@ -642,6 +658,9 @@ export function startServer() {
       console.log(`Elinks receiver http://${lanIp()}:${PORT}`);
       console.log(`Save path ${saveRoot()}`);
       resolve({ port: PORT, host: lanIp(), reused: false });
+      setImmediate(() => {
+        try { linkMps(); } catch { /* probe later on /api/info */ }
+      });
     };
     server.once("error", onError);
     server.once("listening", onListen);
