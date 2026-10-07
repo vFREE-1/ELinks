@@ -807,19 +807,33 @@ html.is-phone .stage { display: none; }
 .plate {
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: #fff;
   border-radius: 0;
   display: grid;
   place-items: center;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   box-shadow: none;
 }
 
+.plate img,
 .plate canvas {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.plate img {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  object-fit: contain;
+  background: #fff;
+}
+
+.plate canvas {
+  position: relative;
+  z-index: 2;
 }
 
 .stage h1 {

@@ -141,6 +141,46 @@ function rebuildDots() {
       });
     }
   }
+  paintStill();
+}
+
+function paintStill() {
+  const still = document.getElementById("qr-still");
+  const n = QR_MATRIX.length;
+  if (!still || !n) return;
+  const quiet = 1.15;
+  const cell = 8;
+  const size = Math.ceil((n + quiet * 2) * cell);
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const origin = quiet * cell;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#1f6feb";
+  dots.forEach(function (dot) {
+    ctx.beginPath();
+    ctx.arc(origin + (dot.c + 0.5) * cell, origin + (dot.r + 0.5) * cell, cell * 0.36, 0, TAU);
+    ctx.fill();
+  });
+  [[0, 0], [n - 7, 0], [0, n - 7]].forEach(function (pos) {
+    const x = origin + pos[0] * cell;
+    const y = origin + pos[1] * cell;
+    const outer = 7 * cell;
+    ctx.fillStyle = "#1f6feb";
+    rounded(ctx, x, y, outer, cell * 1.85);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    rounded(ctx, x + cell, y + cell, 5 * cell, cell * 1.35);
+    ctx.fill();
+    const inner = 3 * cell;
+    const inset = (outer - inner) / 2;
+    ctx.fillStyle = "#1f6feb";
+    rounded(ctx, x + inset, y + inset, inner, cell);
+    ctx.fill();
+  });
+  still.src = canvas.toDataURL("image/png");
 }
 
 rebuildDots();
@@ -200,6 +240,10 @@ function paintQr(t) {
   const box = qrCanvas.getBoundingClientRect();
   const size = box.width;
   if (size < 8) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const bw = Math.max(1, Math.floor(size * dpr));
+  const bh = Math.max(1, Math.floor(box.height * dpr));
+  if (qrCanvas.width !== bw || qrCanvas.height !== bh) sizeCanvas(qrCanvas, qrCtx, size, box.height);
   const n = QR_MATRIX.length;
   const quiet = 1.15;
   const cell = size / (n + quiet * 2);

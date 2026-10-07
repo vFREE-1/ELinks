@@ -85,6 +85,7 @@ if (!index.includes('id="universe"') || !index.includes('id="orb-self"')) throw 
 if (!index.includes('id="send-lines"') || !index.includes('id="recv-lines"')) throw new Error("orb state lines missing");
 if (!index.includes('id="recv-universe"') || !index.includes('id="peer-modal-drop"')) throw new Error("receive-page orbs or disconnect missing");
 if (!index.includes('class="qr-slot"')) throw new Error("receive QR must keep its original layout block");
+if (!index.includes('id="qr-still"')) throw new Error("receive QR still image missing");
 if (!index.includes('id="alias-name"') || !index.includes('id="discover-toggle"')) throw new Error("alias/discover settings missing");
 if (!index.includes('id="send-pick-files"')) throw new Error("send picker missing");
 if (!index.includes('id="peer-modal"') || !index.includes("建立发送链接")) throw new Error("peer confirm modal missing");
@@ -117,6 +118,7 @@ if (!sendSrc.includes('reject(new Error("closed"))')) throw new Error("new files
 if (sendSrc.includes("active.xhrs.slice().forEach")) throw new Error("a closed link must not abort slices already in flight");
 if (live.includes("has-orbs")) throw new Error("receive orbs must not resize the QR layout");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
+if (!appJs.includes("function paintStill")) throw new Error("receive QR must keep a still image under the animation");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
   throw new Error("busy nav must highlight 返回接收");
 }
