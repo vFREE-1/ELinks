@@ -559,11 +559,13 @@ function resetSendTarget() {
     $("send-peer-lead").hidden = true;
     $("send-peer-lead").textContent = "";
   }
+  if ($("send-bar-name")) $("send-bar-name").hidden = true;
 }
 
 function showSendBar(peer, message) {
   outboundPeer = peer;
   if ($("send-peer-name")) $("send-peer-name").textContent = peer.alias || peer.host;
+  if ($("send-bar-name")) $("send-bar-name").hidden = !peer;
   if ($("send-target")) $("send-target").hidden = false;
   if ($("send-peer-lead")) {
     $("send-peer-lead").textContent = message || "";

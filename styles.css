@@ -352,20 +352,24 @@ html.is-send .stage {
   overflow: hidden;
 }
 
+.stage .universe-empty,
 .universe-empty {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  bottom: 20px;
   transform: translateX(-50%);
   margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  max-width: none;
+  color: #a1a1a6;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
   pointer-events: none;
   white-space: nowrap;
 }
 
-.universe-empty[hidden] { display: none; }
+.universe-empty[hidden] { display: none !important; }
 
 .orb {
   position: absolute;
@@ -448,16 +452,18 @@ html.is-send .stage {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 0 24px 8px;
+  gap: 6px;
+  padding: 0 24px 10px;
 }
 
-.send-bar[hidden] { display: none; }
+.send-bar[hidden],
+.stage-copy[hidden] { display: none !important; }
 
+.stage .send-bar-name,
 .send-bar-name {
   color: var(--muted);
-  font-size: 13px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .send-bar-name b {
@@ -465,10 +471,14 @@ html.is-send .stage {
   font-weight: 600;
 }
 
+.stage .send-bar-msg,
 .send-bar-msg {
   margin: 0;
+  max-width: none;
   color: #c4372f;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
 }
 
 .send-bar .fill {

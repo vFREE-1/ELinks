@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send2" />
+  <link rel="stylesheet" href="styles.css?v=send3" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -90,11 +90,11 @@
             <i></i>
             <span id="orb-self-name">Elinks</span>
           </button>
-          <p class="universe-empty" id="universe-empty">附近还没有其他 Elinks</p>
+          <span class="universe-empty" id="universe-empty">附近没有其他电脑</span>
         </div>
         <div class="send-bar" id="send-target" hidden>
-          <span class="send-bar-name">传到 <b id="send-peer-name"></b></span>
-          <p class="send-bar-msg" id="send-peer-lead" hidden></p>
+          <span class="send-bar-name" id="send-bar-name" hidden>传到 <b id="send-peer-name"></b></span>
+          <span class="send-bar-msg" id="send-peer-lead" hidden></span>
           <div class="send-pass" id="send-pass-block" hidden>
             <label for="peer-password">接收密码</label>
             <input id="peer-password" type="password" autocomplete="current-password" />
@@ -202,7 +202,7 @@
     </footer>
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
-  <script src="app.js?v=send2"></script>
-  <script src="live.js?v=send2"></script>
+  <script src="app.js?v=send3"></script>
+  <script src="live.js?v=send3"></script>
 </body>
 </html>
