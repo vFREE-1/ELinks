@@ -646,7 +646,8 @@ async function handleRequest(req, res) {
         discoverPort: DISCOVER_PORT,
         alias: cfg.alias,
         discoverable: cfg.discoverable !== false,
-        link: true
+        link: true,
+        openDir: true
       });
       return;
     }
@@ -707,7 +708,7 @@ async function handleRequest(req, res) {
       fs.mkdirSync(path.resolve(cfg.savePath), { recursive: true });
       saveConfig(cfg);
       const root = path.resolve(cfg.savePath);
-      execFile("explorer.exe", [root], { windowsHide: true });
+      execFile("cmd.exe", ["/c", "start", "", "explorer.exe", root], { windowsHide: true });
       sendJson(res, { ok: true, savePath: root });
       return;
     }

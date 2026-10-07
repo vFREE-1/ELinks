@@ -427,9 +427,8 @@ $("copy-host").addEventListener("click", function () {
 $("open-dir").addEventListener("click", function () {
   if (!LIVE) return;
   const savePath = $("save-path-bar").value || $("save-path").value;
-  persistConfig().then(function () {
-    fetch("/api/open-dir?path=" + encodeURIComponent(savePath));
-  });
+  fetch("/api/open-dir?path=" + encodeURIComponent(savePath));
+  persistConfig();
 });
 
 async function pair(fromForm) {

@@ -68,6 +68,7 @@ try {
   if ($peek.PSObject.Properties.Name -notcontains 'alias') { $needStart = $true }
   if ($peek.PSObject.Properties.Name -notcontains 'discoverable') { $needStart = $true }
   if ($peek.link -ne $true) { $needStart = $true }
+  if ($peek.openDir -ne $true) { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
 } catch {
@@ -346,6 +347,9 @@ try {
   if ($css -notmatch '\.net-path') { throw "speed chip must leave room for the transfer path" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'open-dir\?path=') { throw "open-dir must send the current save path" }
+  if ($live -match 'persistConfig\(\)\.then\(function \(\) \{\s*fetch\("/api/open-dir') { throw "open-dir must not wait on config before opening explorer" }
+  if ($mainSrv -match 'execFile\("explorer.exe"') { throw "explorer.exe must be started detached so the folder window is visible" }
+  if ($mainSrv -notmatch 'start"", "explorer.exe"' -and $mainSrv -notmatch 'start", "", "explorer.exe"') { throw "open-dir must launch explorer via start" }
   if ($live -notmatch 'phone.html') { throw "scanned phone=1 links must open the phone page" }
   $phoneJs = Get-Content -LiteralPath (Join-Path $RootFull "phone.js") -Raw
   if ($phoneJs -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
