@@ -653,7 +653,7 @@ html.is-desktop #qr {
 
 .modal-card,
 .link-card {
-  width: min(360px, 90vw);
+  width: min(400px, 90vw);
   padding: 20px 20px 16px;
   border-radius: 16px;
   background: #fff;
@@ -687,32 +687,39 @@ html.is-desktop #qr {
 }
 
 .modal-facts {
-  margin: 0 0 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin: 0 0 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
 }
 
 .modal-facts div {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.modal-facts #peer-fact-hold-row {
+  grid-column: 1 / -1;
 }
 
 .modal-facts #peer-fact-hold-row[hidden] { display: none !important; }
 
 .modal-facts dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: var(--tracking-ui);
 }
 
 .modal-facts dd {
   margin: 0;
   color: var(--ink);
-  font-weight: 500;
-  text-align: right;
+  font-weight: 600;
+  text-align: left;
   word-break: break-all;
   font-variant-numeric: tabular-nums;
 }
