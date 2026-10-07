@@ -1232,6 +1232,13 @@ button.fill {
 
 button.fill:hover { background: #154ea8; }
 
+button.fill:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+button.fill:disabled:hover { background: var(--blue); }
+
 .status b { color: var(--ink); font-weight: 600; }
 
 .path-mark {

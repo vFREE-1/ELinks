@@ -596,17 +596,20 @@ function stopLinkPoll() {
   linkPollTimer = 0;
 }
 
-function setModalStatus(text) {
-  if ($("peer-modal-status")) $("peer-modal-status").textContent = text || "";
+function setLinkButton(label, busy) {
+  const btn = $("peer-modal-link");
+  if (!btn) return;
+  btn.hidden = false;
+  btn.disabled = Boolean(busy);
+  btn.textContent = label || "建立发送链接";
 }
 
 function closePeerModal() {
   stopLinkPoll();
   outboundLinkId = "";
   if ($("peer-modal")) $("peer-modal").hidden = true;
-  if ($("peer-modal-link")) $("peer-modal-link").hidden = false;
+  setLinkButton("建立发送链接", false);
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
-  setModalStatus("");
 }
 
 function openPeerModal(peer) {
@@ -623,25 +626,20 @@ function openPeerModal(peer) {
   if ($("peer-fact-tls")) {
     $("peer-fact-tls").textContent = peer.httpsPort ? String(peer.httpsPort) : "无";
   }
-  if ($("peer-modal-link")) {
-    $("peer-modal-link").hidden = false;
-    $("peer-modal-link").disabled = false;
-  }
+  setLinkButton("建立发送链接", false);
   if ($("send-pick-files")) $("send-pick-files").hidden = true;
-  setModalStatus("确认是这台电脑后，建立发送链接。对方允许后才能选文件。");
   if ($("peer-modal")) $("peer-modal").hidden = false;
 }
 
 function applyLinkStatus(data) {
   if (!data || !data.ok) return;
   if (data.status === "pending") {
-    setModalStatus("已发出请求，等待对方允许…");
+    setLinkButton("等待对方允许…", true);
     return;
   }
   if (data.status === "denied" || data.status === "expired") {
     stopLinkPoll();
-    if ($("peer-modal-link")) $("peer-modal-link").hidden = false;
-    setModalStatus(data.status === "denied" ? "对方拒绝了这次连接。" : "对方没有回应。");
+    setLinkButton(data.status === "denied" ? "对方拒绝了，再试一次" : "对方没有回应，再试一次", false);
     return;
   }
   if (data.status === "accepted" && data.session) {
@@ -650,7 +648,6 @@ function applyLinkStatus(data) {
     outboundBase = peerBase(outboundPeer);
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = false;
-    setModalStatus("对方已允许。现在可以选文件发送。");
   }
 }
 
@@ -658,13 +655,12 @@ async function requestLink() {
   const peer = outboundPeer;
   if (!peer) return;
   if (!peer.token) {
-    setModalStatus("这台电脑还不能这样传。");
+    setLinkButton("这台电脑还不能这样传", true);
     return;
   }
   const base = peerBase(peer);
   const selfHost = info && info.host ? String(info.host).split(":")[0] : "";
-  $("peer-modal-link").disabled = true;
-  setModalStatus("正在请求对方允许…");
+  setLinkButton("等待对方允许…", true);
   try {
     const res = await fetch(base + "/api/link", {
       method: "POST",
@@ -678,8 +674,7 @@ async function requestLink() {
     });
     const data = await res.json();
     if (!data.ok || !data.id) {
-      $("peer-modal-link").disabled = false;
-      setModalStatus("打不开这台电脑。");
+      setLinkButton("打不开这台电脑，再试一次", false);
       return;
     }
     outboundLinkId = data.id;
@@ -692,8 +687,7 @@ async function requestLink() {
         .catch(function () {});
     }, 400);
   } catch (err) {
-    $("peer-modal-link").disabled = false;
-    setModalStatus("打不开这台电脑。");
+    setLinkButton("打不开这台电脑，再试一次", false);
   }
 }
 
