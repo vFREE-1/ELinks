@@ -1,4 +1,4 @@
-import { isIosUa, isVideoFile, sliceBytes } from "./slice.mjs";
+import { isIosUa, sliceBytes } from "./slice.mjs";
 import { missingSlices, rangeBytes } from "./resume.mjs";
 
 let active = {
@@ -94,27 +94,25 @@ function retuneItem(item, bytes, ms) {
 }
 
 function takeJob(items) {
-  const activeVideo = items.find(function (item) {
-    return isVideoFile(item.name, item.file.type) && item.slices && item.slices.length && item.sent > 0 && !item.done;
-  });
-  const order = activeVideo ? [activeVideo] : items;
-  for (let i = 0; i < order.length; i++) {
-    const item = order[i];
-    if (item.done || item.error) continue;
-    if (item.slices === null) continue;
+  let pick = null;
+  items.forEach(function (item) {
+    if (item.done || item.error) return;
+    if (item.slices === null) return;
     if (item.size <= 0) {
       item.error = "empty";
       item.done = true;
-      continue;
+      return;
     }
     if (!item.slices.length) {
-      item.done = true;
-      continue;
+      if (!(item.inflight > 0)) item.done = true;
+      return;
     }
-    const pair = item.slices.shift();
-    return { item: item, start: pair[0], end: pair[1] };
-  }
-  return null;
+    if (!pick || (item.inflight || 0) < (pick.inflight || 0)) pick = item;
+  });
+  if (!pick) return null;
+  const pair = pick.slices.shift();
+  pick.inflight = (pick.inflight || 0) + 1;
+  return { item: pick, start: pair[0], end: pair[1] };
 }
 
 async function loadResume(item, session) {
@@ -152,6 +150,7 @@ export async function sendFiles(files, opts) {
       sent: 0,
       ranges: [],
       slices: null,
+      inflight: 0,
       done: false,
       error: ""
     };
@@ -200,15 +199,17 @@ export async function sendFiles(files, opts) {
         }).then(function () {
           job.item.ranges = (job.item.ranges || []).concat([[job.start, job.end]]);
           job.item.sent = Math.max(job.item.sent, rangeBytes(job.item.ranges));
+          job.item.inflight = Math.max(0, (job.item.inflight || 1) - 1);
           const mps = retuneItem(job.item, job.end - job.start, Date.now() - started);
           if (mps >= 12 && lanes < 6) lanes = 6;
           if (mps >= 25 && lanes < 8) lanes = 8;
-          if (!job.item.slices.length) job.item.done = true;
+          if (!job.item.slices.length && !job.item.inflight) job.item.done = true;
           inflight -= 1;
           pump();
           finish();
         }).catch(function (err) {
           const msg = String(err && err.message ? err.message : err);
+          job.item.inflight = Math.max(0, (job.item.inflight || 1) - 1);
           if (msg === "cancelled" || active.cancelled) {
             job.item.error = "cancelled";
           } else {

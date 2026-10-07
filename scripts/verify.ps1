@@ -458,6 +458,11 @@ try {
   $phoneJs = Get-Content -LiteralPath (Join-Path $RootFull "phone.js") -Raw
   if ($phoneJs -notmatch 'get\(.p.\)') { throw "phone page must read the GET password" }
   if ($phoneJs -notmatch 'sendFiles') { throw "phone page must send through the shared uploader" }
+  if ($phoneJs -match '" B"' -or $phoneJs -match '" MB"') { throw "phone sizes must use M, not B" }
+  if ($live -match 'return bytes \+ " B"' -or $live -match '" MB"') { throw "desktop sizes must use M, not B" }
+  $sendJs = Get-Content -LiteralPath (Join-Path $RootFull "send.mjs") -Raw
+  if ($sendJs -match 'activeVideo') { throw "send lanes must spread across files" }
+  if ($sendJs -notmatch 'pick.inflight') { throw "send must keep several files in flight" }
   if ($phoneJs -notmatch 'shouldSwitchToUsb') { throw "phone page must follow the usb address when the cable is up" }
   if ($phoneJs -notmatch 'usb-path') { throw "phone page must load the usb switch helper" }
   if ($phoneJs -notmatch 'cancelSend') { throw "phone page must cancel in-flight uploads" }

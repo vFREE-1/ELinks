@@ -10,9 +10,11 @@ function get(name) {
 }
 
 function formatSize(bytes) {
-  if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + " GB";
-  if (bytes >= 1024 ** 2) return Math.max(1, Math.round(bytes / 1024 ** 2)) + " MB";
-  return bytes + " B";
+  const m = Math.max(0, Number(bytes) || 0) / (1024 * 1024);
+  if (m >= 1024) return (m / 1024).toFixed(2) + " G";
+  if (m >= 10) return Math.round(m) + " M";
+  if (m >= 1) return m.toFixed(1) + " M";
+  return (Math.round(m * 10) / 10).toFixed(1) + " M";
 }
 
 let info = null;

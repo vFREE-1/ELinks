@@ -122,6 +122,9 @@ if (!live.includes("function forgetSenderBond")) throw new Error("sender must fo
 const sendSrc = fs.readFileSync(path.join(ROOT, "send.mjs"), "utf8");
 if (!sendSrc.includes('reject(new Error("closed"))')) throw new Error("new files after drop must fail without aborting the current upload");
 if (sendSrc.includes("active.xhrs.slice().forEach")) throw new Error("a closed link must not abort slices already in flight");
+if (sendSrc.includes("activeVideo")) throw new Error("send lanes must spread across files instead of finishing one video first");
+if (!sendSrc.includes("pick.inflight")) throw new Error("send must track in-flight work per file so several files run together");
+if (live.includes('return bytes + " B"') || live.includes('" MB"')) throw new Error("sizes must use M, not B or MB");
 if (live.includes("has-orbs")) throw new Error("receive orbs must not resize the QR layout");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (!appJs.includes("function paintStill")) throw new Error("receive QR must keep a still image under the animation");
