@@ -30,12 +30,24 @@ function inAndroid() {
 }
 
 function pickHint() {
-  const limited = inWeChat() || inAndroid();
+  const wechat = inWeChat();
+  const limited = wechat || inAndroid();
   if ($("wechat-hint")) $("wechat-hint").hidden = !limited;
+  if (wechat) {
+    return "微信相册不能照片和视频一起选。弹出后选「文件」，或点右上角用浏览器打开。";
+  }
   if (limited) {
     return "系统相册一次大约最多 100 张，不是上传限制。选完会马上开始传，更多请再选一些。";
   }
   return "选好就传到这台电脑，不用再改地址。";
+}
+
+function unlockWeChatPicker() {
+  if (!inWeChat()) return;
+  ["file-input", "file-more"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.removeAttribute("accept");
+  });
 }
 
 function takeInputFiles(input) {
@@ -140,6 +152,15 @@ function queueFiles(list) {
     return;
   }
   sending = true;
+  watchPath().then(function () {
+    startSend(files);
+  }, function () {
+    startSend(files);
+  });
+}
+
+function startSend(files) {
+  sending = true;
   $("pick").hidden = true;
   $("send").hidden = false;
   if ($("send-stop")) $("send-stop").hidden = false;
@@ -233,6 +254,7 @@ window.addEventListener("pagehide", function () {
 });
 
 async function boot() {
+  unlockWeChatPicker();
   const token = get("t") || "";
   if (get("p")) $("join-password").value = get("p");
   const ctrl = typeof AbortController === "function" ? new AbortController() : null;

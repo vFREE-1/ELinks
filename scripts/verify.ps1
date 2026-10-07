@@ -71,6 +71,9 @@ try {
   if ($peek.openDir -ne $true) { $needStart = $true }
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing -TimeoutSec 2
   if ($page.Headers["Cache-Control"] -ne "no-store") { $needStart = $true }
+  if ($page.Content -match 'id="open-phone"') { $needStart = $true }
+  $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
+  if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
 } catch {
   $needStart = $true
 }
@@ -183,6 +186,7 @@ try {
   if ($phonePage.Content -notmatch 'id="send-fill"') { throw "phone page must show overall upload progress" }
   if ($phonePage.Content -notmatch 'id="send-count"') { throw "phone page must show uploaded file counts" }
   if ($phonePage.Content -notmatch 'id="wechat-hint"') { throw "phone page must explain WeChat picker limits" }
+  if ($phonePage.Content -notmatch 'mix-hint') { throw "phone page must explain WeChat cannot mix photos and videos in the album" }
   if ($phonePage.Content -match 'id="qr"') { throw "phone page must not include the waiting qr" }
   if ($phonePage.Content -match 'id="allow-lan"') { throw "phone page must not include allow-lan" }
   if ($phonePage.Content -match 'id="join-wifi"') { throw "phone page must not include wifi join" }
@@ -301,6 +305,7 @@ try {
   if ($index -notmatch 'id="settings-allow-lan"') { throw "allow-lan must stay in settings" }
   if ($index -notmatch '允许防火墙通过') { throw "allow-lan must keep a visible firewall entry" }
   if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
+  if ($index -match 'id="open-phone"') { throw "desktop waiting chrome must not include a phone-page entry" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
   if ($live -notmatch 'function setDeskMode') { throw "receive/send tabs need a desk mode switch" }
@@ -310,6 +315,8 @@ try {
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
   if ($live -match 'qrMode !== "page" \|\| !info \|\| !info.needAllow') { throw "allow-lan must stay visible after the probe" }
   if ($live -notmatch 'function requestAllowLan') { throw "allow-lan click must be reusable from the top bar" }
+  if ($live -match 'info.linkMps \? String') { throw "zero linkMps must not hide the cap as a dash" }
+  if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw
   if ($mainSrv -notmatch 'async function allowLan') { throw "allow-lan must not freeze the waiting window" }
   if ($mainSrv -match 'Verb RunAs -Wait -WindowStyle Hidden') { throw "hidden RunAs swallows the confirm prompt" }
@@ -378,8 +385,14 @@ try {
   if ($phoneJs -notmatch 'function takeInputFiles') { throw "phone page must copy the FileList before clearing the input" }
   if ($phoneJs -notmatch 'send-pct') { throw "phone page must update overall upload percent" }
   if ($phoneJs -notmatch 'AbortController') { throw "phone page must not wait forever on info" }
+  if ($phoneJs -notmatch 'function unlockWeChatPicker') { throw "WeChat picker must drop accept so photos and videos can mix" }
+  if ($phoneJs -notmatch 'removeAttribute\(.accept.\)') { throw "WeChat file input must not keep an accept filter" }
   if ($phoneJs -match 'const files = \$\("file-input"\)\.files;\s*\$\("file-input"\)\.value') { throw "clearing the live FileList drops the selection on Android" }
   if ($sendMod.Content -notmatch 'slices: null') { throw "uploader must not wait to resume every file before the first PUT" }
+  if ($sendMod.Content -notmatch 'function packSlices') { throw "uploader must grow slices when the link is fast" }
+  if ($sendMod.Content -notmatch 'function retuneItem') { throw "uploader must auto-detect slice size from transfer rate" }
+  if ($mainSrv -match '\}; else \{') { throw "nic speed probe must keep a real powershell if/else" }
+  if ($mainSrv -notmatch 'measuredMps') { throw "receiver must learn transfer rate from live uploads" }
   if ($mainSrv -notmatch 'pickHosts') { throw "receiver must pick usb over wifi" }
   if ($mainSrv -notmatch 'usb-path.mjs') { throw "usb-path.mjs must be on the client allow list" }
   $sliceSrc = Get-Content -LiteralPath (Join-Path $RootFull "slice.mjs") -Raw

@@ -43,9 +43,8 @@ async function boot() {
   if ($("alias-name")) $("alias-name").value = info.alias || "";
   if ($("orb-self-name")) $("orb-self-name").textContent = info.alias || "Elinks";
   if ($("app-version") && info.version) $("app-version").textContent = info.version;
-  if ($("cap-mps")) $("cap-mps").textContent = info.linkMps ? String(info.linkMps) : "—";
-  if ($("now-mps")) $("now-mps").textContent = "0";
   showNetPath();
+  if ($("now-mps")) $("now-mps").textContent = "0";
   $("today").textContent = "今天已接收 0 个文件";
   $("active-count").textContent = "等待发送";
   $("mbps").textContent = "0";
@@ -309,7 +308,10 @@ function showNetPath() {
   if (chip) {
     chip.title = usb ? "已接数据线，USB 为传输通道" : "当前走 Wi-Fi / 网卡最高速度";
   }
-  if ($("cap-mps")) $("cap-mps").textContent = info && info.linkMps ? String(info.linkMps) : "—";
+  if ($("cap-mps")) {
+    const cap = info && Number(info.linkMps);
+    $("cap-mps").textContent = Number.isFinite(cap) && cap > 0 ? String(Math.round(cap)) : "检测中";
+  }
 }
 
 async function refreshLink() {

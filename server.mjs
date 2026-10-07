@@ -49,39 +49,42 @@ function lanIp() {
   const ip = currentHosts().host;
   if (ip !== lastLanIp) {
     lastLanIp = ip;
-    nicProbed = false;
+    nicMps = 0;
+    nicProbeAt = 0;
     probeNicMps();
   }
   return ip;
 }
 
 let nicMps = 0;
-let nicProbed = false;
+let nicProbeAt = 0;
+let nicProbing = false;
+let measuredMps = 0;
 
 function probeNicMps() {
-  if (nicProbed || process.platform !== "win32") return;
-  nicProbed = true;
+  if (process.platform !== "win32") return;
+  if (nicMps > 0 || nicProbing) return;
+  if (nicProbeAt && Date.now() - nicProbeAt < 8000) return;
+  nicProbing = true;
+  nicProbeAt = Date.now();
   const ip = String(lastLanIp || lanIp()).replace(/[^0-9.]/g, "");
-  const script = [
-    `$ip = '${ip}'`,
-    `$idx = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip })[0].InterfaceIndex`,
-    `if ($idx) { [int64](Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Speed }`,
-    `else { [int64](@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.Speed } | Sort-Object Speed -Descending)[0].Speed) }`
-  ].join("; ");
+  const script = `$ip='${ip}'; $idx=@(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -eq $ip })[0].InterfaceIndex; if ($idx) { [int64](Get-NetAdapter -InterfaceIndex $idx -ErrorAction SilentlyContinue).Speed } else { [int64](@(Get-NetAdapter -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' -and $_.Speed } | Sort-Object Speed -Descending)[0].Speed) }`;
   execFile("powershell.exe", ["-NoProfile", "-Command", script], {
-    timeout: 4000,
+    timeout: 15000,
     windowsHide: true,
     encoding: "utf8"
   }, (err, stdout) => {
-    if (err) return;
-    const bits = Number(String(stdout || "").trim());
+    nicProbing = false;
+    nicProbeAt = Date.now();
+    const bits = Number(String(stdout || "").trim().split(/\s+/).pop());
     if (Number.isFinite(bits) && bits > 0) nicMps = bits / 8 / 1e6;
   });
 }
 
 function linkMps() {
   probeNicMps();
-  return nicMps;
+  if (nicMps > 0) return nicMps;
+  return measuredMps;
 }
 
 function laneCount() {
@@ -365,6 +368,8 @@ function bumpSpeed(item, n) {
   item.window = item.window.filter((tick) => nowMs - tick.t < 1000);
   const span = Math.max(0.2, (nowMs - item.window[0].t) / 1000);
   item.speed = item.window.reduce((sum, tick) => sum + tick.n, 0) / span;
+  const mps = item.speed / 1e6;
+  if (mps > measuredMps) measuredMps = mps;
 }
 
 async function writeRange(req, filePath, offset, onBytes) {

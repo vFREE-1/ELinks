@@ -59,6 +59,33 @@ function putSlice(item, start, end, session, onProgress) {
   });
 }
 
+function packSlices(slices, chunk) {
+  const size = Math.max(1, Number(chunk) || 1);
+  const packed = [];
+  (slices || []).forEach(function (pair) {
+    const start = pair[0];
+    const end = pair[1];
+    const last = packed[packed.length - 1];
+    if (last && last[1] === start && end - last[0] <= size) last[1] = end;
+    else packed.push([start, end]);
+  });
+  return packed;
+}
+
+function retuneItem(item, bytes, ms) {
+  if (!(bytes > 0) || !(ms > 0) || !item) return 0;
+  const mps = bytes / ms / 1000;
+  let next = item.chunk;
+  if (item.size >= 8 * 1024 * 1024 && ms < 4000 && item.chunk < 4 * 1024 * 1024) next = 4 * 1024 * 1024;
+  else if (ms < 700 && mps >= 2) next = Math.min(8 * 1024 * 1024, item.chunk * 2);
+  else if (ms > 5000 && item.chunk > 512 * 1024) next = Math.max(512 * 1024, Math.floor(item.chunk / 2));
+  if (next !== item.chunk) {
+    item.chunk = next;
+    if (item.slices && item.slices.length) item.slices = packSlices(item.slices, item.chunk);
+  }
+  return mps;
+}
+
 function takeJob(items) {
   const activeVideo = items.find(function (item) {
     return isVideoFile(item.name, item.file.type) && item.slices && item.slices.length && item.sent > 0 && !item.done;
@@ -105,7 +132,7 @@ async function loadResume(item, session) {
 
 export async function sendFiles(files, opts) {
   const session = opts.session;
-  const lanes = Math.max(1, Number(opts.lanes) || 4);
+  let lanes = Math.max(1, Number(opts.lanes) || 4);
   const ios = isIosUa(typeof navigator !== "undefined" ? navigator.userAgent : "", typeof document !== "undefined" && "ontouchend" in document);
   active = { cancelled: false, xhrs: [], base: String(opts.base || "") };
   const items = Array.prototype.map.call(files, function (file, index) {
@@ -158,6 +185,7 @@ export async function sendFiles(files, opts) {
         const job = takeJob(items);
         if (!job) break;
         inflight += 1;
+        const started = Date.now();
         putSlice(job.item, job.start, job.end, session, function (loaded) {
           const sent = rangeBytes(job.item.ranges) + loaded;
           if (sent > job.item.sent) job.item.sent = Math.min(job.item.size, sent);
@@ -165,6 +193,9 @@ export async function sendFiles(files, opts) {
         }).then(function () {
           job.item.ranges = (job.item.ranges || []).concat([[job.start, job.end]]);
           job.item.sent = Math.max(job.item.sent, rangeBytes(job.item.ranges));
+          const mps = retuneItem(job.item, job.end - job.start, Date.now() - started);
+          if (mps >= 12 && lanes < 6) lanes = 6;
+          if (mps >= 25 && lanes < 8) lanes = 8;
           if (!job.item.slices.length) job.item.done = true;
           inflight -= 1;
           pump();

@@ -6,7 +6,6 @@ function setMode(busy) {
   document.documentElement.classList.toggle("is-busy", busy);
   if (busy) document.documentElement.classList.remove("is-phone");
   $("mode").textContent = busy ? "返回等待" : "查看接收";
-  $("open-phone").textContent = "手机页";
 }
 
 $("mode").addEventListener("click", function () {
@@ -54,7 +53,6 @@ $("close-settings").addEventListener("click", function () {
 $("open-dir").addEventListener("click", function () {
   document.documentElement.classList.remove("is-busy", "is-phone");
   $("mode").textContent = "查看接收";
-  $("open-phone").textContent = "手机页";
 });
 
 let passwordAsked = false;
@@ -70,23 +68,8 @@ function resetJoin() {
 }
 
 function showPhone() {
-  document.documentElement.classList.remove("is-busy");
-  document.documentElement.classList.add("is-phone");
-  $("mode").textContent = "查看接收";
-  $("open-phone").textContent = "返回等待";
-  $("settings").hidden = true;
-  resetJoin();
-  $("host").value = localStorage.getItem("links.host") || memory.host;
+  /* Phone uploads stay on phone.html from the QR. The desktop window is not a phone page. */
 }
-
-$("open-phone").addEventListener("click", function () {
-  if (document.documentElement.classList.contains("is-phone")) {
-    document.documentElement.classList.remove("is-phone");
-    $("open-phone").textContent = "手机页";
-    return;
-  }
-  showPhone();
-});
 
 function openPicker() {
   $("join-form").hidden = true;
