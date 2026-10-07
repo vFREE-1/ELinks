@@ -109,6 +109,7 @@ if (!live.includes("function setDeskMode")) throw new Error("desk mode switch mi
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
 if (!live.includes("const HOST_ICON") || !live.includes("function recvOrbPoint")) throw new Error("host icon and receive spacing missing");
+if (!live.includes("const PHONE_ICON") || !live.includes("data.phones")) throw new Error("receive page must show a phone icon for paired phones");
 if (!live.includes("data.history")) throw new Error("receive page must show past hosts");
 if (!live.includes("function forgetBond") || !index.includes('id="peer-modal-forget"')) throw new Error("past hosts must be removable");
 if (!live.includes('ballPoint(field, $("orb-self"))')) throw new Error("send lines must meet the center of this computer");
@@ -149,6 +150,13 @@ try {
   const opt = await request("OPTIONS", "/api/pair");
   if (opt.status !== 204 && (opt.status < 200 || opt.status >= 300)) throw new Error("pair OPTIONS failed");
   if (opt.headers["access-control-allow-origin"] !== "*") throw new Error("pair CORS missing");
+
+  const phonePair = await json("POST", "/api/pair", { token: snapshot.token, alias: "iPhone", kind: "phone" });
+  if (!phonePair.ok || !phonePair.session) throw new Error("phone pair failed");
+  const phoneList = await json("GET", "/api/transfers");
+  if (!Array.isArray(phoneList.phones) || !phoneList.phones.some((row) => row.kind === "phone" && row.session === phonePair.session && row.alias === "iPhone")) {
+    throw new Error("paired phone must appear on the receive page");
+  }
 
   await json("POST", "/api/config", { discoverable: false });
   const silent = await probe(700);

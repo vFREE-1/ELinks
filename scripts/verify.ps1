@@ -51,7 +51,7 @@ function Stop-RepoReceiver {
 
 $started = $false
 $proc = $null
-$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true -or $health.hostHistory -ne $true -or $health.hostForget -ne $true
+$needStart = -not $health -or -not $health.ok -or $health.runtime -ne "node" -or $health.parallel -ne $true -or $health.adaptive -ne $true -or $health.tls -ne $true -or $health.discover -ne $true -or $health.clearDone -ne $true -or $health.sessionHold -ne $true -or $health.sessionDrain -ne $true -or $health.linkExtend -ne $true -or $health.hostIcon -ne $true -or $health.phoneIcon -ne $true -or $health.hostHistory -ne $true -or $health.hostForget -ne $true
 try {
   $peek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/info" -TimeoutSec 2
   if ($null -eq $peek.linkMps -or $null -eq $peek.wifiJoin) { $needStart = $true }
@@ -338,6 +338,8 @@ try {
   if ($index -match 'id="open-phone"') { throw "desktop waiting chrome must not include a phone-page entry" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function hideSettings') { throw "settings must close when clicking outside the sheet" }
+  if ($live -notmatch 'const PHONE_ICON') { throw "receive page must have a phone icon mark" }
+  if ($live -notmatch 'data\.phones') { throw "receive page must paint live phones around the QR" }
   if ($live -notmatch 'sheet\.contains\(e\.target\)') { throw "outside click must ignore presses inside the settings sheet" }
   if ($live -notmatch 'open-settings"\)[\s\S]{0,80}contains\(e\.target\)') { throw "outside click must ignore the settings button itself" }
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }

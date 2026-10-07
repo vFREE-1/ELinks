@@ -305,11 +305,39 @@ function closeSession(session) {
   rec.closed = true;
 }
 
+function clientIp(req) {
+  return String((req.socket && req.socket.remoteAddress) || "").replace(/^::ffff:/, "");
+}
+
 function sessionRec(id) {
   const rec = sessions.get(id);
   if (!rec || rec.cancelled) return null;
   if (rec.until && Date.now() > rec.until) closeSession(id);
+  if (rec.kind === "phone") rec.seen = Date.now();
   return sessions.get(id) || null;
+}
+
+const PHONE_HOLD_MS = 12000;
+
+function livePhones() {
+  const now = Date.now();
+  const rows = [];
+  sessions.forEach((rec, id) => {
+    if (!rec || rec.kind !== "phone" || rec.cancelled || rec.closed) return;
+    if (now - (Number(rec.seen) || Number(rec.t) || 0) > PHONE_HOLD_MS) return;
+    rows.push({
+      id: "phone:" + id,
+      alias: rec.alias || "手机",
+      host: rec.host || id,
+      port: PORT,
+      status: "accepted",
+      kind: "phone",
+      until: (Number(rec.seen) || now) + PHONE_HOLD_MS,
+      session: id,
+      at: rec.t
+    });
+  });
+  return rows;
 }
 
 function dropLinkSession(row) {
@@ -343,6 +371,7 @@ function publicLink(row) {
     status: row.status,
     until: row.until || 0,
     session: row.session || "",
+    kind: "host",
     at: row.t
   };
 }
@@ -400,6 +429,7 @@ function historyHosts() {
     status: "history",
     until: 0,
     session: "",
+    kind: "host",
     at: row.lastAt || 0
   }));
 }
@@ -727,12 +757,18 @@ async function handleRequest(req, res) {
         sessionDrain: true,
         linkExtend: true,
         hostIcon: true,
+        phoneIcon: true,
         hostHistory: true,
         hostForget: true
       });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/info") {
+      const sid = String(url.searchParams.get("session") || "");
+      if (sid) {
+        const rec = sessions.get(sid);
+        if (rec && rec.kind === "phone" && !rec.cancelled && !rec.closed) rec.seen = Date.now();
+      }
       const cfg = loadConfig();
       if (!reachAt || Date.now() - reachAt > 8000) refreshReach().catch(() => {});
       probeNicMps();
@@ -819,7 +855,8 @@ async function handleRequest(req, res) {
         done: done.slice(-20),
         pendingLinks: local ? pendingLinks() : [],
         bonds: local ? liveBonds() : [],
-        history: local ? historyHosts() : []
+        history: local ? historyHosts() : [],
+        phones: local ? livePhones() : []
       });
       return;
     }
@@ -902,7 +939,15 @@ async function handleRequest(req, res) {
         return;
       }
       const session = crypto.randomBytes(12).toString("base64url");
-      sessions.set(session, { t: Date.now(), cancelled: false });
+      const alias = String(incoming.alias || "").trim().slice(0, 24) || "手机";
+      sessions.set(session, {
+        t: Date.now(),
+        seen: Date.now(),
+        cancelled: false,
+        kind: "phone",
+        host: clientIp(req),
+        alias
+      });
       sendJson(res, { ok: true, session });
       return;
     }

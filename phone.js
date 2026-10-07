@@ -65,8 +65,16 @@ function setStatus(text) {
   $("phone-status").textContent = text;
 }
 
+function phoneAlias() {
+  const ua = navigator.userAgent || "";
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/iPad/i.test(ua)) return "iPad";
+  if (/Android/i.test(ua)) return "Android";
+  return "手机";
+}
+
 async function pair(fromForm) {
-  const payload = { token: info.token };
+  const payload = { token: info.token, alias: phoneAlias(), kind: "phone" };
   const fromQuery = get("p");
   if (fromForm) payload.password = $("join-password").value || fromQuery || "";
   else if (fromQuery) payload.password = fromQuery;
@@ -227,7 +235,8 @@ function followUsb(data) {
 
 async function watchPath() {
   try {
-    const data = await fetch("/api/info").then(function (res) { return res.json(); });
+    const q = sessionId ? ("?session=" + encodeURIComponent(sessionId)) : "";
+    const data = await fetch("/api/info" + q).then(function (res) { return res.json(); });
     info = data;
     if (data.lanes) lanes = data.lanes;
     followUsb(data);

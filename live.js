@@ -600,10 +600,14 @@ function recvOrbPoint(host, index) {
 }
 
 const HOST_ICON = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect class="host-bezel" x="5" y="4.2" width="22" height="16.2" rx="3.2"/><rect class="host-screen" x="7.1" y="6.3" width="17.8" height="12" rx="1.6"/><path class="host-stand" d="M14.2 20.4h3.6l1.7 3.4h-7z"/><rect class="host-base" x="11" y="23.6" width="10" height="1.8" rx=".9"/></svg>';
+const PHONE_ICON = '<svg viewBox="0 0 32 32" aria-hidden="true"><rect class="host-bezel" x="9.2" y="2.4" width="13.6" height="27.2" rx="3.4"/><rect class="host-screen" x="10.8" y="5.4" width="10.4" height="18.8" rx="1.4"/><rect class="host-base" x="14.2" y="25.6" width="3.6" height="1.7" rx=".85"/></svg>';
 
-function fillHostMark(node) {
-  if (!node || node.querySelector("svg")) return;
-  node.innerHTML = HOST_ICON;
+function fillHostMark(node, kind) {
+  if (!node) return;
+  const use = kind === "phone" ? "phone" : "host";
+  if (node.getAttribute("data-kind") === use && node.querySelector("svg")) return;
+  node.setAttribute("data-kind", use);
+  node.innerHTML = use === "phone" ? PHONE_ICON : HOST_ICON;
 }
 
 function pad2(n) {
@@ -748,7 +752,7 @@ function makeOrb(field, peer, clickHost, point) {
   node.style.animationDelay = "-" + ((seed % 17) * 0.37).toFixed(2) + "s";
   node.style.animationDuration = (7.2 + (seed % 5) * 0.7).toFixed(1) + "s";
   const mark = document.createElement("i");
-  fillHostMark(mark);
+  fillHostMark(mark, peer && peer.kind === "phone" ? "phone" : "host");
   node.appendChild(mark);
   node.appendChild(document.createElement("span"));
   node.addEventListener("click", function () { clickHost(peer.host); });
@@ -803,6 +807,10 @@ function renderOrbs(peers) {
   }
 }
 
+function recvKey(peer) {
+  return (peer && (peer.id || peer.host)) || "";
+}
+
 function renderRecvOrbs(bonds) {
   const field = $("recv-universe");
   if (!field) return;
@@ -810,13 +818,15 @@ function renderRecvOrbs(bonds) {
   const seen = new Set();
   const spokes = [];
   lastBonds.forEach(function (peer) {
-    if (!peer || !peer.host) return;
-    seen.add(peer.host);
-    let node = recvOrbNodes.get(peer.host);
+    const key = recvKey(peer);
+    if (!key) return;
+    seen.add(key);
+    let node = recvOrbNodes.get(key);
     if (!node) {
-      node = makeOrb(field, peer, chooseRecvPeer, recvOrbPoint(peer.host, seen.size - 1));
-      recvOrbNodes.set(peer.host, node);
+      node = makeOrb(field, peer, function () { chooseRecvPeer(key); }, recvOrbPoint(peer.host || key, seen.size - 1));
+      recvOrbNodes.set(key, node);
     }
+    fillHostMark(node.querySelector("i"), peer.kind === "phone" ? "phone" : "host");
     node.querySelector("span").textContent = peer.alias || peer.host;
     node._peer = peer;
     const state = bondState(peer);
@@ -931,6 +941,7 @@ function openPeerModal(peer, role) {
   stopLinkPoll();
   fillPeerFacts(peer);
   const recv = modalRole === "recv";
+  const phone = Boolean(peer && peer.kind === "phone");
   const bond = recv ? peer : liveSenderBond(peer && peer.host);
   const linked = Boolean(bond && (bond.session || recv) && Number(bond.until || peer.until) > Date.now());
   if (recv) {
@@ -940,10 +951,10 @@ function openPeerModal(peer, role) {
     const liveBond = Boolean(peer && peer.status === "accepted" && Number(peer.until) > Date.now());
     if ($("peer-modal-link")) $("peer-modal-link").hidden = true;
     if ($("send-pick-files")) $("send-pick-files").hidden = true;
-    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = !liveBond;
-    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = !liveBond;
-    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = liveBond;
-    setHoldRow(liveBond ? peer.until : 0);
+    if ($("peer-modal-drop")) $("peer-modal-drop").hidden = phone || !liveBond;
+    if ($("peer-modal-extend")) $("peer-modal-extend").hidden = phone || !liveBond;
+    if ($("peer-modal-forget")) $("peer-modal-forget").hidden = phone || liveBond;
+    setHoldRow(phone || !liveBond ? 0 : peer.until);
   } else if (linked) {
     outboundSession = bond.session;
     outboundBase = peerBase(peer);
@@ -1419,7 +1430,7 @@ async function pollTransfers() {
   const data = await fetch("/api/transfers").then(function (res) { return res.json(); });
   showLinkTab(data.pendingLinks || []);
   liveSessions = new Set((data.active || []).map(function (item) { return item && item.session; }).filter(Boolean));
-  renderRecvOrbs((data.bonds || []).concat(data.history || []));
+  renderRecvOrbs((data.bonds || []).concat(data.history || []).concat(data.phones || []));
   if (document.documentElement.classList.contains("is-send")) paintSendOrbs();
   if (outboundActive) return;
   if (busyKind === "send" && !(data.active || []).length) return;
