@@ -78,6 +78,7 @@ try {
   if ($page.Content -notmatch 'id="recv-universe"') { $needStart = $true }
   if ($page.Content -notmatch 'id="peer-modal-drop"') { $needStart = $true }
   if ($page.Content -notmatch 'id="clear-done"') { $needStart = $true }
+  if ($page.Content -notmatch 'id="wifi-modal"') { $needStart = $true }
   $xferPeek = Invoke-RestMethod -Uri "http://127.0.0.1:8730/api/transfers" -TimeoutSec 2
   if ($xferPeek.PSObject.Properties.Name -notcontains 'bonds') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
@@ -181,6 +182,7 @@ try {
   $page = Invoke-WebRequest -Uri "http://127.0.0.1:8730/" -UseBasicParsing
   if ($page.Headers["Cache-Control"] -ne "no-store") { throw "waiting page must not be cached" }
   if ($page.Content -match 'id="join-net"|id="wifi-qr"') { throw "served page still has a second qr" }
+  if ($page.Content -notmatch 'id="wifi-modal"' -or $page.Content -notmatch 'id="wifi-join-canvas"') { throw "wifi join must open a floating qr" }
   if ($page.Content -notmatch 'id="allow-lan"') { throw "served page is missing allow-lan" }
   if ($page.Content -notmatch 'id="join-wifi"') { throw "served page is missing the wifi join control" }
   if ($page.Content -notmatch 'join-wifi-title') { throw "served page still has the old wifi hint" }
@@ -326,7 +328,8 @@ try {
   if ($index -notmatch 'id="nav-allow-lan"') { throw "allow-lan must stay in the top bar" }
   if ($index -notmatch 'id="settings-allow-lan"') { throw "allow-lan must stay in settings" }
   if ($index -notmatch '允许防火墙通过') { throw "allow-lan must keep a visible firewall entry" }
-  if ($index -notmatch '要连这个 Wi-Fi') { throw "wifi join should stay a separate action" }
+  if ($index -notmatch 'id="wifi-modal"') { throw "wifi join must open a floating qr modal" }
+  if ($index -notmatch 'id="wifi-join-canvas"') { throw "wifi join modal must show a qr" }
   if ($index -match 'id="open-phone"') { throw "desktop waiting chrome must not include a phone-page entry" }
   $live = Get-Content -LiteralPath (Join-Path $RootFull "live.js") -Raw
   if ($live -notmatch 'function setWaitTab') { throw "waiting tabs need a switch helper" }
@@ -355,6 +358,8 @@ try {
   if ($live -match 'hidden = Boolean\(info && info.needAllow\)') { throw "wifi join must stay visible when allow-lan is shown" }
   if ($live -match 'qrMode !== "page" \|\| !info \|\| !info.needAllow') { throw "allow-lan must stay visible after the probe" }
   if ($live -notmatch 'function requestAllowLan') { throw "allow-lan click must be reusable from the top bar" }
+  if ($live -match 'function showWifiQr' -or $live -match 'qrMode = "wifi"') { throw "wifi join must not replace the receive qr" }
+  if ($live -notmatch 'function openWifiModal' -or $live -notmatch 'function paintWifiModal') { throw "wifi join must open a floating qr" }
   if ($live -match 'info.linkMps \? String') { throw "zero linkMps must not hide the cap as a dash" }
   if ($live -notmatch 'Number.isFinite\(cap\)') { throw "speed chip must show when the link rate is still being measured" }
   $mainSrv = Get-Content -LiteralPath (Join-Path $RootFull "server.mjs") -Raw

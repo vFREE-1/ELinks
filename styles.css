@@ -664,6 +664,27 @@ html.is-send .stage {
   text-align: center;
 }
 
+.modal-card.wifi-card {
+  width: min(320px, 90vw);
+  text-align: center;
+}
+
+.wifi-plate {
+  width: 220px;
+  height: 220px;
+  margin: 4px auto 16px;
+  padding: 10px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(31, 111, 235, 0.12);
+}
+
+#wifi-join-canvas {
+  display: block;
+  width: 200px;
+  height: 200px;
+}
+
 .link-card {
   text-align: left;
 }

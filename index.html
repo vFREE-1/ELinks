@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Elinks</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=send9" />
+  <link rel="stylesheet" href="styles.css?v=send10" />
   <script>
     if (navigator.userAgent.includes("Electron")) document.documentElement.classList.add("is-desktop");
   </script>
@@ -79,12 +79,12 @@
         </div>
         <div class="stage-extra">
           <button type="button" class="join-wifi" id="join-wifi" hidden>
-            <strong id="join-wifi-title">要连这个 Wi-Fi？</strong>
-            <span id="join-wifi-copy">点这里，大码会换成加入 Wi-Fi 的码。弹出后点加入，不用输密码。</span>
+            <strong id="join-wifi-title">手机要连同一个 Wi-Fi</strong>
+            <span id="join-wifi-copy">点这里扫码，加入电脑正在用的网络。</span>
           </button>
           <button type="button" class="join-wifi" id="allow-lan">
-            <strong id="allow-lan-title">允许防火墙通过</strong>
-            <span id="allow-lan-copy">手机扫码打不开时点这里，在系统窗口选「是」。可以随时再点。</span>
+            <strong id="allow-lan-title">同一 Wi-Fi 还是打不开？</strong>
+            <span id="allow-lan-copy">点这里允许通过防火墙。</span>
           </button>
         </div>
       </div>
@@ -130,6 +130,16 @@
         <button type="button" class="fill" id="send-pick-files" hidden>选择照片和视频</button>
         <button type="button" class="fill" id="peer-modal-drop" hidden>断开连接</button>
         <button type="button" class="text" id="peer-modal-close">取消</button>
+      </div>
+    </div>
+    <div class="modal" id="wifi-modal" hidden>
+      <div class="modal-card wifi-card">
+        <h2 id="wifi-modal-title">连同一个 Wi-Fi</h2>
+        <p class="modal-status" id="wifi-modal-copy">用手机扫这个码，加入电脑正在用的 Wi-Fi。弹出后点加入，不用输密码。</p>
+        <div class="wifi-plate">
+          <canvas id="wifi-join-canvas" width="220" height="220" aria-label="加入电脑正在用的 Wi-Fi 的二维码"></canvas>
+        </div>
+        <button type="button" class="text" id="wifi-modal-close">关闭</button>
       </div>
     </div>
 
@@ -242,6 +252,6 @@
   </div>
   <input id="file-input" type="file" accept="image/*,video/*,.heic,.heif,.mov,.mp4" multiple hidden />
   <script src="app.js?v=send6"></script>
-  <script src="live.js?v=send14"></script>
+  <script src="live.js?v=send15"></script>
 </body>
 </html>

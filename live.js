@@ -148,25 +148,31 @@ $("tab-recv").addEventListener("click", function () { setDeskMode("recv"); });
 $("tab-send").addEventListener("click", function () { setDeskMode("send"); });
 if ($("tab-link")) $("tab-link").addEventListener("click", function () { setDeskMode("link"); });
 
+function setJoinWifiHint() {
+  const name = networkName();
+  if ($("join-wifi-title")) $("join-wifi-title").textContent = "手机要连同一个 Wi-Fi";
+  if ($("join-wifi-copy")) {
+    $("join-wifi-copy").textContent = name
+      ? ("点这里扫码，加入电脑正在用的" + name)
+      : "点这里扫码，加入电脑正在用的 Wi-Fi。";
+  }
+}
+
 function showPageQr() {
   qrMode = "page";
   if (pageMatrix) applyMatrix(pageMatrix);
   $("qr").setAttribute("aria-label", "接收页二维码，手机扫码后选择照片或视频");
   $("stage-title").textContent = "等待接收";
-  const name = networkName();
   if (wifiMatrix) {
     $("join-wifi").hidden = false;
-    $("join-wifi-title").textContent = "要连这个 Wi-Fi？";
-    $("join-wifi-copy").textContent = "点这里，大码换成加入" + name + "的码。弹出后点加入，不用输密码。";
+    setJoinWifiHint();
   } else {
     $("join-wifi").hidden = true;
   }
   if (info && info.usb) {
     $("stage-lead").textContent = "数据线已接上。扫码后仍在手机里选照片，文件走这条线，不用在电脑上翻文件夹。";
-  } else if (name) {
-    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。要先连 Wi-Fi" + name + "，再扫这个码。";
   } else {
-    $("stage-lead").textContent = "用手机相机扫这个码，就会打开选照片。手机要和这台电脑在同一个网络。";
+    $("stage-lead").textContent = "用手机相机扫码，就会打开选照片。";
   }
   showAllowLan();
 }
@@ -191,27 +197,50 @@ function showAllowLan() {
   if (nav) nav.hidden = !local;
   if (settings) settings.hidden = !local;
   if (!local || allowing) return;
-  if (info && info.needAllow) {
-    if ($("allow-lan-title")) $("allow-lan-title").textContent = "检查过了：手机现在连不进来";
-    if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "点这里允许防火墙通过。只需确认一次，确认后会再检查一次。";
-    return;
-  }
-  if ($("allow-lan-title")) $("allow-lan-title").textContent = "允许防火墙通过";
-  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "手机扫码打不开时点这里，在系统窗口选「是」。可以随时再点。";
+  if ($("allow-lan-title")) $("allow-lan-title").textContent = "同一 Wi-Fi 还是打不开？";
+  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "点这里允许通过防火墙。";
 }
 
-function showWifiQr() {
+function paintWifiModal(matrix) {
+  const canvas = $("wifi-join-canvas");
+  if (!canvas || !matrix || !matrix.length) return;
+  const n = matrix.length;
+  const css = 200;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(css * dpr);
+  canvas.height = Math.floor(css * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, css, css);
+  const quiet = 1.15;
+  const cell = css / (n + quiet * 2);
+  const origin = quiet * cell;
+  ctx.fillStyle = "#1f6feb";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!matrix[r][c]) continue;
+      ctx.fillRect(origin + c * cell, origin + r * cell, cell + 0.35, cell + 0.35);
+    }
+  }
+}
+
+function closeWifiModal() {
+  if ($("wifi-modal")) $("wifi-modal").hidden = true;
+}
+
+function openWifiModal() {
   if (!wifiMatrix) return;
   setWaitTab("scan");
-  qrMode = "wifi";
-  applyMatrix(wifiMatrix);
-  $("qr").setAttribute("aria-label", "加入这台电脑所在 Wi-Fi 的二维码");
-  $("stage-title").textContent = "先加入这个 Wi-Fi";
-  $("stage-lead").textContent = "用相机扫上面的码，弹出后点加入" + networkName() + "。";
-  $("join-wifi").hidden = false;
-  $("join-wifi-title").textContent = "已经加入了？";
-  $("join-wifi-copy").textContent = "点这里，换回接收码，再扫一次就会打开选照片。";
-  showAllowLan();
+  const name = networkName();
+  if ($("wifi-modal-title")) $("wifi-modal-title").textContent = name ? ("加入" + name) : "连同一个 Wi-Fi";
+  if ($("wifi-modal-copy")) {
+    $("wifi-modal-copy").textContent = name
+      ? ("用手机扫这个码，加入电脑正在用的" + name + "。弹出后点加入，不用输密码。")
+      : "用手机扫这个码，加入电脑正在用的 Wi-Fi。弹出后点加入，不用输密码。";
+  }
+  paintWifiModal(wifiMatrix);
+  if ($("wifi-modal")) $("wifi-modal").hidden = false;
 }
 
 async function loadWifiJoin() {
@@ -237,13 +266,21 @@ $("join-wifi").addEventListener("click", function (event) {
   event.preventDefault();
   if (!wifiMatrix) {
     $("join-wifi").hidden = false;
-    $("join-wifi-title").textContent = "现在还不能换码";
-    $("join-wifi-copy").textContent = "没有读到这个 Wi-Fi 的加入码，请稍后再点。";
+    $("join-wifi-title").textContent = "手机要连同一个 Wi-Fi";
+    $("join-wifi-copy").textContent = "现在还没有加入码，请稍后再点。";
     return;
   }
-  if (qrMode === "wifi") showPageQr();
-  else showWifiQr();
+  openWifiModal();
 });
+
+if ($("wifi-modal-close")) {
+  $("wifi-modal-close").addEventListener("click", function () { closeWifiModal(); });
+}
+if ($("wifi-modal")) {
+  $("wifi-modal").addEventListener("click", function (event) {
+    if (event.target.id === "wifi-modal") closeWifiModal();
+  });
+}
 
 function requestAllowLan(event) {
   if (event) event.preventDefault();
@@ -251,14 +288,14 @@ function requestAllowLan(event) {
   allowing = true;
   setAllowBusy(true);
   if ($("allow-lan-title")) $("allow-lan-title").textContent = "请在系统窗口点「是」";
-  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "正在请求允许手机连入，这不是连 Wi-Fi。";
+  if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "允许之后，同一 Wi-Fi 下就能打开。";
   fetch("/api/allow-lan", { method: "POST" }).then(function (res) { return res.json(); }).then(function (data) {
     return refreshLink().then(function () {
       allowing = false;
       setAllowBusy(false);
       if ((data && data.ok === false) || (info && info.needAllow)) {
-        if ($("allow-lan-title")) $("allow-lan-title").textContent = "还是连不进来";
-        if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。确认后窗口会自己关掉。";
+        if ($("allow-lan-title")) $("allow-lan-title").textContent = "还没有允许成功";
+        if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "再点一次，并在系统窗口选择「是」。";
         return;
       }
       showPageQr();
@@ -266,8 +303,8 @@ function requestAllowLan(event) {
   }).catch(function () {
     allowing = false;
     setAllowBusy(false);
-    if ($("allow-lan-title")) $("allow-lan-title").textContent = "没有完成允许";
-    if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "请再点一次，并在系统窗口选择是。";
+    if ($("allow-lan-title")) $("allow-lan-title").textContent = "还没有允许成功";
+    if ($("allow-lan-copy")) $("allow-lan-copy").textContent = "再点一次，并在系统窗口选择「是」。";
   });
 }
 if ($("allow-lan")) $("allow-lan").addEventListener("click", requestAllowLan);

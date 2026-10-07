@@ -90,6 +90,8 @@ if (!index.includes('id="tab-link"') || !index.includes("允许建立")) throw n
 if (!index.includes("点一台电脑，发给它")) throw new Error("send hint missing");
 if (!index.includes('id="busy-pick-more"')) throw new Error("send progress must offer pick more files");
 if (!index.includes('id="clear-done"')) throw new Error("completed list must offer to clear display records");
+if (!index.includes('id="wifi-modal"') || !index.includes('id="wifi-join-canvas"')) throw new Error("same-wifi hint must open a floating qr");
+if (!index.includes("同一个 Wi-Fi") || !index.includes("允许通过防火墙")) throw new Error("waiting hints must tell users to join the same wifi then allow the firewall");
 if (!index.includes("busy-hero") || !index.includes("busy-boards")) throw new Error("progress page layout missing");
 if (directedBroadcast("192.168.1.22", "255.255.255.0") !== "192.168.1.255") throw new Error("discover must compute the subnet broadcast");
 const discoverSrc = fs.readFileSync(path.join(ROOT, "discover.mjs"), "utf8");
@@ -106,6 +108,7 @@ if (!live.includes("function requestLink") || !live.includes("function respondLi
 if (!live.includes("function drawLines") || !live.includes("function dropBond")) throw new Error("orb lines or receiver disconnect missing");
 if (!live.includes("function renderRecvOrbs") || !live.includes("elinks.bonds")) throw new Error("receive orbs or 1h bond cache missing");
 if (!live.includes("function clearDoneRecords")) throw new Error("completed list must clear display records");
+if (!live.includes("function openWifiModal") || live.includes("function showWifiQr")) throw new Error("wifi join must open a floating qr instead of swapping the receive code");
 const appJs = fs.readFileSync(path.join(ROOT, "app.js"), "utf8");
 if (appJs.includes("返回等待") || !appJs.includes("返回接收") || !appJs.includes("nav-back")) {
   throw new Error("busy nav must highlight 返回接收");
