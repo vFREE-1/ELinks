@@ -1,7 +1,33 @@
 import dgram from "node:dgram";
+import os from "node:os";
+import { isPrivateLan, isUsbAddress } from "./net.mjs";
 
 export const DISCOVER_PORT = 8732;
 export const DISCOVER_GROUP = "224.0.0.167";
+
+export function directedBroadcast(address, netmask) {
+  const ip = String(address || "").split(".").map(Number);
+  const mask = String(netmask || "").split(".").map(Number);
+  if (ip.length !== 4 || mask.length !== 4) return "";
+  if (ip.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return "";
+  if (mask.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return "";
+  return ip.map((octet, i) => octet | (~mask[i] & 255)).join(".");
+}
+
+function lanIfaces() {
+  const rows = [];
+  for (const addrs of Object.values(os.networkInterfaces())) {
+    for (const addr of addrs || []) {
+      if (addr.internal) continue;
+      const family = String(addr.family || "");
+      if (family !== "IPv4" && family !== "4") continue;
+      const ip = String(addr.address || "");
+      if (!ip || ip.startsWith("169.254.")) continue;
+      rows.push({ ip, netmask: String(addr.netmask || "") });
+    }
+  }
+  return rows;
+}
 
 export function startDiscover(opts) {
   const getHost = opts && opts.getHost ? opts.getHost : () => "127.0.0.1";
@@ -12,6 +38,7 @@ export function startDiscover(opts) {
   const httpsPort = Number(opts && opts.httpsPort) || 0;
   const socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
   const peers = new Map();
+  const joined = new Set();
 
   function payload(probe) {
     return {
@@ -24,6 +51,38 @@ export function startDiscover(opts) {
       token: getToken(),
       probe: Boolean(probe)
     };
+  }
+
+  function isSelf(ip) {
+    const addr = String(ip || "");
+    if (!addr || addr === getHost()) return true;
+    if (addr === "127.0.0.1" || addr === "0.0.0.0") return true;
+    return lanIfaces().some((nic) => nic.ip === addr);
+  }
+
+  function joinIfaces() {
+    lanIfaces().forEach((nic) => {
+      if (joined.has(nic.ip)) return;
+      try {
+        socket.addMembership(DISCOVER_GROUP, nic.ip);
+        joined.add(nic.ip);
+      } catch {
+        /* nic may not support multicast */
+      }
+    });
+  }
+
+  function announce(probe) {
+    const buf = Buffer.from(JSON.stringify(payload(probe)));
+    lanIfaces().forEach((nic) => {
+      try { socket.setMulticastInterface(nic.ip); } catch { /* ignore */ }
+      try { socket.send(buf, DISCOVER_PORT, DISCOVER_GROUP); } catch { /* ignore */ }
+      const bcast = directedBroadcast(nic.ip, nic.netmask);
+      if (bcast) {
+        try { socket.send(buf, DISCOVER_PORT, bcast); } catch { /* ignore */ }
+      }
+    });
+    try { socket.send(buf, DISCOVER_PORT, "255.255.255.255"); } catch { /* ignore */ }
   }
 
   socket.on("error", () => { /* keep beacon optional */ });
@@ -41,11 +100,11 @@ export function startDiscover(opts) {
       socket.send(reply, rinfo.port, rinfo.address);
       return;
     }
-    const host = String(msg.host || "");
-    if (!host || host === getHost()) return;
+    const host = String(rinfo && rinfo.address ? rinfo.address : msg.host || "");
+    if (isSelf(host) || isUsbAddress(host, "") || !isPrivateLan(host)) return;
     peers.set(host, {
       host,
-      port: msg.port,
+      port: Number(msg.port) || port,
       httpsPort: msg.httpsPort,
       alias: msg.alias,
       token: msg.token || "",
@@ -54,15 +113,20 @@ export function startDiscover(opts) {
   });
 
   socket.bind(DISCOVER_PORT, "0.0.0.0", () => {
-    try { socket.addMembership(DISCOVER_GROUP); } catch { /* single-homed ok */ }
     try { socket.setBroadcast(true); } catch { /* ignore */ }
     try { socket.setMulticastTTL(1); } catch { /* ignore */ }
+    joinIfaces();
+    if (getDiscoverable()) {
+      announce(false);
+      announce(true);
+    }
   });
 
   const timer = setInterval(() => {
+    joinIfaces();
     if (!getDiscoverable()) return;
-    const buf = Buffer.from(JSON.stringify(payload(false)));
-    try { socket.send(buf, DISCOVER_PORT, DISCOVER_GROUP); } catch { /* ignore */ }
+    announce(false);
+    announce(true);
   }, 2000);
   if (timer.unref) timer.unref();
 

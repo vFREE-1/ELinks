@@ -410,6 +410,10 @@ try {
   if ($mainSrv -notmatch '/api/cancel') { throw "receiver must cancel a session" }
   if ($mainSrv -notmatch 'HTTPS_PORT') { throw "receiver must listen on https" }
   if ($mainSrv -notmatch 'startDiscover') { throw "receiver must announce itself on the lan" }
+  $discoverSrc = Get-Content -LiteralPath (Join-Path $RootFull "discover.mjs") -Raw
+  if ($discoverSrc -notmatch '255.255.255.255') { throw "discover must broadcast so wifi can see nearby pcs" }
+  if ($discoverSrc -notmatch 'setMulticastInterface') { throw "discover must pick the lan nic instead of a vpn nic" }
+  if ($discoverSrc -notmatch 'announce\(true\)') { throw "discover must probe nearby machines" }
   if ($mainSrv -match 'execFileSync') { throw "receiver must not freeze on sync powershell during info" }
   if ($mainSrv -notmatch 'peekLink') { throw "info must answer from cached wifi link" }
   node (Join-Path $RootFull "scripts\verify-pack.mjs")
