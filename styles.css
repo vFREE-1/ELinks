@@ -1345,6 +1345,8 @@ html.phone-page body::-webkit-scrollbar {
   touch-action: manipulation;
 }
 
+.pick-entry[hidden] { display: none !important; }
+
 .pick-entry strong {
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -1359,13 +1361,6 @@ html.phone-page body::-webkit-scrollbar {
   height: 100%;
   cursor: pointer;
   font-size: 16px;
-}
-
-.pick-more {
-  margin-top: 22px;
-  background: transparent;
-  color: var(--blue);
-  border: 1px solid rgba(31, 111, 235, 0.35);
 }
 
 .phone-send {
@@ -1429,6 +1424,8 @@ html.phone-page body::-webkit-scrollbar {
   display: block;
   margin: 14px 0 0;
 }
+
+.phone-send #send-stop[hidden] { display: none !important; }
 
 .phone-row {
   padding: 12px 0;

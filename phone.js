@@ -44,10 +44,13 @@ function pickHint() {
 
 function unlockWeChatPicker() {
   if (!inWeChat()) return;
-  ["file-input", "file-more"].forEach(function (id) {
-    const el = $(id);
-    if (el) el.removeAttribute("accept");
-  });
+  const el = $("file-input");
+  if (el) el.removeAttribute("accept");
+}
+
+function setPickLabel(more) {
+  const label = $("pick-label");
+  if (label) label.textContent = more ? "再选一些" : "选择照片和视频";
 }
 
 function takeInputFiles(input) {
@@ -161,7 +164,8 @@ function queueFiles(list) {
 
 function startSend(files) {
   sending = true;
-  $("pick").hidden = true;
+  setPickLabel(true);
+  $("pick").hidden = false;
   $("send").hidden = false;
   if ($("send-stop")) $("send-stop").hidden = false;
   setStatus("已选 " + files.length + " 个，开始传。");
@@ -237,10 +241,6 @@ $("join-pass").addEventListener("submit", function (event) {
 
 $("file-input").addEventListener("change", function () {
   queueFiles(takeInputFiles($("file-input")));
-});
-
-$("file-more").addEventListener("change", function () {
-  queueFiles(takeInputFiles($("file-more")));
 });
 
 if ($("send-stop")) {

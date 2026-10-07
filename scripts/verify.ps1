@@ -74,6 +74,9 @@ try {
   if ($page.Content -match 'id="open-phone"') { $needStart = $true }
   $sendPeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/send.mjs" -UseBasicParsing -TimeoutSec 2
   if ($sendPeek.Content -notmatch 'function packSlices') { $needStart = $true }
+  $phonePeek = Invoke-WebRequest -Uri "http://127.0.0.1:8730/phone.html" -UseBasicParsing -TimeoutSec 2
+  if ($phonePeek.Content -match 'id="file-more"') { $needStart = $true }
+  if ($phonePeek.Content -notmatch 'id="pick-label"') { $needStart = $true }
 } catch {
   $needStart = $true
 }
@@ -179,7 +182,8 @@ try {
   if ($phonePage.Headers["Cache-Control"] -ne "no-store") { throw "phone page must not be cached" }
   if ($phonePage.Content -notmatch 'id="file-input"') { throw "phone page must expose the file input" }
   if ($phonePage.Content -notmatch 'pick-entry') { throw "phone page must use a dedicated upload entry" }
-  if ($phonePage.Content -notmatch 'id="file-more"') { throw "phone page must keep a second pick entry after sending" }
+  if ($phonePage.Content -match 'id="file-more"') { throw "phone page must not keep a second pick entry under the list" }
+  if ($phonePage.Content -notmatch 'id="pick-label"') { throw "phone pick button must switch to pick-more after the first batch" }
   if ($phonePage.Content -notmatch 'id="send-stop"') { throw "phone page must be able to cancel the session" }
   if ($phonePage.Content -notmatch 'id="send-list"') { throw "phone page must show the upload list" }
   if ($phonePage.Content -notmatch 'id="send-pct"') { throw "phone page must show overall upload percent" }
@@ -386,6 +390,8 @@ try {
   if ($phoneJs -notmatch 'send-pct') { throw "phone page must update overall upload percent" }
   if ($phoneJs -notmatch 'AbortController') { throw "phone page must not wait forever on info" }
   if ($phoneJs -notmatch 'function unlockWeChatPicker') { throw "WeChat picker must drop accept so photos and videos can mix" }
+  if ($phoneJs -notmatch 'function setPickLabel') { throw "after the first batch the top pick must become pick-more" }
+  if ($phoneJs -notmatch 'setPickLabel\(true\)') { throw "started uploads must relabel the top pick instead of adding a second button" }
   if ($phoneJs -notmatch 'removeAttribute\(.accept.\)') { throw "WeChat file input must not keep an accept filter" }
   if ($phoneJs -match 'const files = \$\("file-input"\)\.files;\s*\$\("file-input"\)\.value') { throw "clearing the live FileList drops the selection on Android" }
   if ($sendMod.Content -notmatch 'slices: null') { throw "uploader must not wait to resume every file before the first PUT" }
