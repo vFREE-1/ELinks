@@ -778,7 +778,7 @@ function renderOrbs(peers) {
     node.remove();
     orbNodes.delete(host);
   });
-  drawLines($("send-lines"), { x: 50, y: 50 }, spokes);
+  drawLines($("send-lines"), ballPoint(field, $("orb-self")), spokes);
   if (empty) {
     empty.hidden = false;
     empty.textContent = seen.size ? "点一台电脑，发给它" : "附近没有其他电脑。两台都要打开 Elinks，并在两边点允许防火墙。";

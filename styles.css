@@ -523,11 +523,15 @@ html.is-desktop #qr {
   max-width: 88px;
 }
 
+.universe .orb,
+.orb.self {
+  animation: none;
+}
+
 .orb.self {
   --x: 50;
   --y: 50;
   cursor: default;
-  animation-duration: 11s;
   z-index: 2;
 }
 
@@ -535,17 +539,19 @@ html.is-desktop #qr {
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  opacity: 0.92;
+  box-shadow:
+    0 0 0 1px rgba(52, 199, 89, 0.28),
+    0 8px 16px rgba(52, 199, 89, 0.16);
 }
 
 .orb.self i svg { width: 24px; height: 24px; }
 
 .orb.self .host-bezel,
 .orb.self .host-stand,
-.orb.self .host-base { fill: #8e8e93; }
-.orb.self .host-screen { fill: #f2f2f7; }
+.orb.self .host-base { fill: #34c759; }
+.orb.self .host-screen { fill: #e8f8ec; }
 
-.orb.self span { color: var(--muted); font-weight: 500; }
+.orb.self span { color: var(--ink); font-weight: 500; }
 
 .orb.idle .host-bezel,
 .orb.idle .host-stand,

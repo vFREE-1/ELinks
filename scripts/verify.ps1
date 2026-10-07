@@ -419,6 +419,8 @@ try {
   if ($css -notmatch '\.recv-universe \.orb i \{[\s\S]{0,80}width:\s*32px') { throw "receive host icons must stay smaller than the send-page icons" }
   if ($css -notmatch '\.orb-line\.linked,[\s\S]{0,40}\.orb-line\.live \{ stroke:\s*#34c759') { throw "connected host lines must be green" }
   if ($css -notmatch 'host-bezel') { throw "hosts must use the computer icon, not a solid orb" }
+  if ($css -notmatch '\.orb\.self \.host-bezel,[\s\S]{0,80}fill:\s*#34c759') { throw "this-computer icon must be green" }
+  if ($live -notmatch 'ballPoint\(field, \$\("orb-self"\)') { throw "send lines must meet the center of this computer" }
   if ($live -notmatch 'const HOST_ICON') { throw "host icon mark missing" }
   if ($live -notmatch 'function recvOrbPoint') { throw "receive hosts must sit farther from the QR" }
   if ($live -notmatch 'id="link-queue"' -and $index -notmatch 'id="link-queue"') { throw "queued authorizations must show a remaining count" }

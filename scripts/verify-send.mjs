@@ -109,6 +109,7 @@ if (!live.includes("function setDeskMode")) throw new Error("desk mode switch mi
 if (!live.includes("function renderOrbs")) throw new Error("universe orbs missing");
 if (!live.includes("function requestLink") || !live.includes("function respondLink")) throw new Error("link handshake missing");
 if (!live.includes("const HOST_ICON") || !live.includes("function recvOrbPoint")) throw new Error("host icon and receive spacing missing");
+if (!live.includes('ballPoint(field, $("orb-self"))')) throw new Error("send lines must meet the center of this computer");
 if (!index.includes('id="link-queue"')) throw new Error("queued authorizations must show remaining PCs");
 if (/function respondLink[\s\S]{0,500}setMode\(true\)/.test(live)) throw new Error("allowing one host must not jump to the receive list");
 if (!live.includes("function drawLines") || !live.includes("function dropBond")) throw new Error("orb lines or receiver disconnect missing");
