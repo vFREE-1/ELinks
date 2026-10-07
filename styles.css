@@ -347,7 +347,7 @@ html.is-send .stage {
   position: relative;
   z-index: 2;
   flex: 1;
-  width: min(720px, 92vw);
+  width: 100%;
   min-height: 260px;
   overflow: hidden;
 }
@@ -443,16 +443,37 @@ html.is-send .stage {
   70% { transform: translate(-50%, -50%) translate(-8px, 8px); }
 }
 
-.send-target {
-  gap: 14px;
+.send-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px 8px;
 }
 
-.send-target .fill {
-  margin-top: 8px;
-  min-width: 220px;
+.send-bar[hidden] { display: none; }
+
+.send-bar-name {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
 }
 
-.send-target .text { margin-top: 4px; }
+.send-bar-name b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.send-bar-msg {
+  margin: 0;
+  color: #c4372f;
+  font-size: 13px;
+}
+
+.send-bar .fill {
+  min-width: 200px;
+}
 
 .send-pass {
   width: min(320px, 86vw);

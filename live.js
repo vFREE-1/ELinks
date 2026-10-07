@@ -551,33 +551,32 @@ function resetSendTarget() {
   outboundSession = "";
   outboundBase = "";
   if ($("send-target")) $("send-target").hidden = true;
-  if ($("send-copy")) $("send-copy").hidden = false;
-  if ($("universe")) $("universe").hidden = false;
   if ($("send-pass-block")) $("send-pass-block").hidden = true;
   if ($("peer-password")) $("peer-password").value = "";
   if ($("peer-pass-error")) $("peer-pass-error").hidden = true;
-  if ($("send-pick-files")) $("send-pick-files").hidden = false;
-  requestAnimationFrame(function () { window.dispatchEvent(new Event("resize")); });
+  if ($("send-pick-files")) $("send-pick-files").hidden = true;
+  if ($("send-peer-lead")) {
+    $("send-peer-lead").hidden = true;
+    $("send-peer-lead").textContent = "";
+  }
 }
 
-function showSendTarget(peer) {
+function showSendBar(peer, message) {
   outboundPeer = peer;
-  outboundSession = "";
-  outboundBase = "";
-  $("send-peer-name").textContent = peer.alias || peer.host;
-  $("send-peer-lead").textContent = (peer.host || "") + ":" + (peer.port || 8730);
-  $("universe").hidden = true;
-  $("send-copy").hidden = true;
-  $("send-target").hidden = false;
-  $("send-pass-block").hidden = true;
-  $("send-pick-files").hidden = false;
+  if ($("send-peer-name")) $("send-peer-name").textContent = peer.alias || peer.host;
+  if ($("send-target")) $("send-target").hidden = false;
+  if ($("send-peer-lead")) {
+    $("send-peer-lead").textContent = message || "";
+    $("send-peer-lead").hidden = !message;
+  }
 }
 
 async function connectPeer(password) {
   const peer = outboundPeer;
   if (!peer) return false;
   if (!peer.token) {
-    $("send-peer-lead").textContent = "这台电脑还不能这样传，请更新后再试。";
+    showSendBar(peer, "这台电脑还不能这样传");
+    if ($("send-pick-files")) $("send-pick-files").hidden = true;
     return false;
   }
   const base = "http://" + peer.host + ":" + (Number(peer.port) || 8730);
@@ -590,12 +589,14 @@ async function connectPeer(password) {
     const data = await res.json();
     $("peer-pass-error").hidden = true;
     if (data.needPassword) {
+      showSendBar(peer, "");
       $("send-pass-block").hidden = false;
       $("send-pick-files").hidden = true;
       $("peer-password").focus();
       return false;
     }
     if (!data.ok) {
+      showSendBar(peer, "密码不正确");
       $("peer-pass-error").hidden = false;
       $("send-pass-block").hidden = false;
       $("send-pick-files").hidden = true;
@@ -603,11 +604,13 @@ async function connectPeer(password) {
     }
     outboundSession = data.session;
     outboundBase = base;
+    $("send-target").hidden = true;
     $("send-pass-block").hidden = true;
-    $("send-pick-files").hidden = false;
+    $("send-pick-files").hidden = true;
     return true;
   } catch (err) {
-    $("send-peer-lead").textContent = "打不开这台电脑，确认两边都开着 Elinks。";
+    showSendBar(peer, "打不开这台电脑");
+    if ($("send-pick-files")) $("send-pick-files").hidden = true;
     return false;
   }
 }
@@ -616,8 +619,13 @@ function choosePeer(host) {
   const node = orbNodes.get(host);
   const peer = node && node._peer;
   if (!peer) return;
-  showSendTarget(peer);
-  connectPeer("");
+  outboundPeer = peer;
+  outboundSession = "";
+  outboundBase = "";
+  if ($("send-peer-name")) $("send-peer-name").textContent = peer.alias || peer.host;
+  connectPeer("").then(function (ok) {
+    if (ok) $("file-input").click();
+  });
 }
 
 function setBusyDirection(kind) {
